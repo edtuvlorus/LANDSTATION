@@ -53,3 +53,10 @@ Angka batas bisa diubah di fungsi `create_booking` pada `supabase/schema.sql`.
 - **Dashboard**: transisi halus pada tombol, ripple, status loading, panel, kartu, dan modal.
 - Tidak ada perubahan `schema.sql` — tidak perlu menjalankan ulang SQL.
 - Catatan: WA dikirim dari perangkat admin (wa.me). Untuk kirim 100% otomatis tanpa membuka WhatsApp, perlu layanan WA gateway/API (mis. Fonnte, WhatsApp Cloud API) + Supabase Edge Function.
+
+## Revisi 2 (paket layanan, kategori, responsif, banner 21:9)
+- **Paket layanan**: tab baru *Paket layanan* di dashboard — harga paket / sekian jam (mis. 3 jam Rp60.000). Paket tampil di kartu layanan dan di pilihan *Durasi / paket* pada form booking. Harga paket dihitung di server (`create_booking` menerima `p_package_id`). Nama paket tersimpan di kolom `bookings.package_name`.
+- **Kategori layanan**: baris di tab *Kategori & harga/jam* (PS4, PS5, Billiard, Arcade, atau kategori baru) = kategori beserta **slot/unit**. Setiap paket wajib dipilihkan kategori, dan satu booking paket memakai **1 slot/unit** kategori tersebut (anti-bentrok jadwal tetap berlaku).
+- **Responsif**: breakpoint untuk layar ≥2000px, laptop, tablet, HP besar/kecil, HP landscape, safe-area (notch), dan perangkat sentuh; modal booking jadi bottom-sheet di HP.
+- **Banner 21:9**: tampil di home tepat di bawah hero (foto rasio 21:9 + panel teks di bawahnya). Ukuran ideal 2100×900 px. Upload foto banner otomatis mengaktifkan banner.
+- **WAJIB**: jalankan ulang seluruh `supabase/schema.sql` di SQL Editor (membuat tabel `packages`, kolom `package_name`, dan fungsi `create_booking` baru), lalu deploy ulang.

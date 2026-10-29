@@ -129,12 +129,15 @@ h1,h2,h3{margin:0}
 .gallery-card span{position:absolute;left:14px;bottom:14px;max-width:calc(100% - 28px);padding:7px 12px;border-radius:8px;
   background:#080a13e6;font:700 11px var(--display);letter-spacing:1px;text-transform:uppercase}
 
-/* ---------- Banner event (panel + foto berdampingan, tanpa scrim) ---------- */
-.event-banner{display:grid;grid-template-columns:minmax(260px,.9fr) 1.6fr;overflow:hidden;border:1px solid #ffffff30;border-radius:22px;background:var(--panel)}
-.event-panel{display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:10px;padding:clamp(20px,4vw,44px)}
-.event-panel h2{font:800 clamp(22px,3.2vw,40px)/1.05 var(--display);margin:0}
-.event-panel p{margin:0 0 6px;color:#d6deea}
-.event-banner>img{display:block;width:100%;height:100%;min-height:220px;aspect-ratio:21/9;object-fit:cover}
+/* ---------- Banner event 21:9 (foto penuh + panel teks di bawahnya, tanpa overlay) ---------- */
+.banner-section{margin-top:8px}
+.event-banner{display:block;overflow:hidden;border:1px solid #ffffff30;border-radius:22px;background:var(--panel)}
+.banner-img{display:block;aspect-ratio:21/9;overflow:hidden;background:#05070b}
+.banner-img img{display:block;width:100%;height:100%;object-fit:cover}
+.event-panel{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:14px 28px;padding:clamp(16px,3vw,28px) clamp(18px,3.5vw,36px)}
+.event-text{flex:1 1 320px;min-width:0;display:grid;gap:6px}
+.event-panel h2{font:800 clamp(20px,2.8vw,34px)/1.1 var(--display);margin:0}
+.event-panel p{margin:0;color:#d6deea}
 
 /* ---------- Footer ---------- */
 footer{margin-top:50px;padding:28px 0;border-top:1px solid #ffffff16}
@@ -443,3 +446,75 @@ body.ready .hero-media{animation-play-state:running}
 .btn:hover b{display:inline-block;transform:translate(2px,-2px)}
 .btn b{transition:transform .3s var(--ease)}
 .admin-content,.admin-grid>*{min-width:0}
+
+
+/* =====================================================================
+   REVISI — paket layanan, banner 21:9, RESPONSIF semua perangkat
+   ===================================================================== */
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+img,video,iframe,canvas,svg{max-width:100%}
+.nav{padding-left:max(5%,env(safe-area-inset-left));padding-right:max(5%,env(safe-area-inset-right))}
+footer{padding-bottom:max(28px,env(safe-area-inset-bottom))}
+.btn,.abtn{min-height:44px}.time-tile,.date-tile{min-height:42px}
+.service-card .body,.event-text,.hero-copy,.admin-content{min-width:0}
+h1,h2,h3,p{overflow-wrap:anywhere}
+
+/* Paket pada kartu layanan */
+.pkg-list{list-style:none;margin:12px 0 0;padding:10px 12px;display:grid;gap:6px;background:#ffffff08;border:1px solid #ffffff18;border-radius:10px;font-size:12px}
+.pkg-list li{display:flex;justify-content:space-between;gap:10px;align-items:baseline}
+.pkg-list span{color:var(--muted)}.pkg-list b{color:var(--ok);white-space:nowrap}
+optgroup{font-style:normal}
+
+/* Admin: preview banner 21:9 */
+#eventPreview img{width:100%;max-width:640px;max-height:none;aspect-ratio:21/9;object-fit:cover}
+.price-table table{min-width:560px}.price-table input[type=checkbox]{width:18px;height:18px}
+
+/* Layar sangat lebar */
+@media(min-width:1500px){.wrap{width:min(1360px,88%)}body{font-size:16px}}
+@media(min-width:2000px){.wrap{width:min(1640px,84%)}body{font-size:18px}}
+
+/* Laptop kecil / tablet landscape */
+@media(max-width:1100px){
+  .services{grid-template-columns:repeat(2,1fr)}
+  .hero{gap:32px}
+  .mini-grid{grid-template-columns:repeat(2,1fr)}
+}
+/* Tablet portrait */
+@media(max-width:850px){
+  .hero{min-height:0;padding:36px 0 30px}
+  .hero-media{order:-1}
+  .booking-strip{flex-direction:column;align-items:flex-start}
+  .admin-top{flex-wrap:wrap;gap:12px}
+  .admin-content{padding:16px}
+}
+/* HP besar */
+@media(max-width:640px){
+  .wrap{width:92%}
+  .counts{flex-wrap:wrap;gap:16px 24px}
+  .mapbox>div{padding:22px}
+  .event-panel{flex-direction:column;align-items:flex-start}.event-panel .btn{width:100%}
+  .modal{padding:0;align-items:flex-end}
+  .glass{max-height:94vh;max-height:94dvh;border-radius:22px 22px 0 0;padding:20px 16px max(20px,env(safe-area-inset-bottom))}
+  .admin-form{grid-template-columns:1fr}.admin-form .full{grid-column:auto}
+  .board-bar input{flex:1 1 140px}.board-bar .btn{flex:1 1 auto}
+  .bk-actions{flex-wrap:wrap}.bk-actions .abtn{flex:1 1 130px}
+  .stat-grid{grid-template-columns:repeat(2,1fr)}.stat.hero-stat{grid-column:1/-1}
+  .thumb-grid{grid-template-columns:repeat(auto-fill,minmax(130px,1fr))}
+  .toast{bottom:max(16px,env(safe-area-inset-bottom))}
+  .price-table input[type=number]{max-width:110px}
+}
+/* HP kecil */
+@media(max-width:380px){
+  .time-grid{grid-template-columns:repeat(2,1fr)}
+  .hero h1{font-size:34px}
+  .brand img{width:104px;height:60px}
+  .stat-grid{grid-template-columns:1fr}
+  .glass{padding-left:14px;padding-right:14px}
+}
+/* HP landscape (layar pendek) */
+@media(max-height:480px) and (orientation:landscape){
+  .nav{height:64px}.brand img{width:96px;height:54px}
+  .hero{padding:24px 0}.modal .glass{max-height:100vh;max-height:100dvh;border-radius:0}
+}
+/* Perangkat sentuh: tanpa efek hover yang mengganjal */
+@media(hover:none){.service-card:hover,.mini-grid article:hover,.menu a:hover{transform:none;padding-left:15px}.admin-side button:hover{transform:none}}

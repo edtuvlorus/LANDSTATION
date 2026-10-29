@@ -57,7 +57,7 @@ function renderOverview(){
 function waNumber(p){let d=String(p||'').replace(/\D/g,'');if(d.startsWith('0'))d='62'+d.slice(1);else if(d.startsWith('8'))d='62'+d;return d}
 function waMessage(b,action,prev){
   const ref=b.id.slice(0,8).toUpperCase(),name=b.customer_name,when=`${fmtDate(b.booking_date)}, pukul ${b.booking_time} WIB`;
-  const detail=`• Layanan: ${b.service_name}\n• Jadwal: ${when}\n• Durasi: ${hoursOf(b)} jam\n• Total: ${money(b.total_price)}\n• Kode: ${ref}`;
+  const detail=`• Layanan: ${b.service_name}${b.package_name?' ('+b.package_name+')':''}\n• Jadwal: ${when}\n• Durasi: ${hoursOf(b)} jam\n• Total: ${money(b.total_price)}\n• Kode: ${ref}`;
   const sign='\n\nTerima kasih,\n*Land Station* 🎮';
   switch(action){
     case 'CONFIRMED':return `Halo ${name}! 👋\n\nBooking kamu di *Land Station* sudah *DIKONFIRMASI* ✅\n\n${detail}\n\nSampai jumpa, jangan telat ya!${sign}`;
@@ -258,7 +258,7 @@ function openBookingModal(id){
   $('#bkRef').textContent='BOOKING · '+b.id.slice(0,8).toUpperCase();$('#bkName').textContent=b.customer_name;
   $('#bkInfo').innerHTML=`<div><small>STATUS</small><b class="st-pill st-${b.status}">${BADGE[b.status]||esc(b.status)}</b></div>
     <div><small>WHATSAPP</small><b>${esc(b.phone)}</b></div>
-    <div><small>LAYANAN</small><b>${esc(b.service_name)}</b></div>
+    <div><small>LAYANAN</small><b>${esc(b.service_name)}${b.package_name?' · '+esc(b.package_name):''}</b></div>
     <div><small>DURASI</small><b>${hoursOf(b)} jam</b></div>
     <div><small>JADWAL</small><b>${esc(fmtDate(b.booking_date))} · ${esc(b.booking_time)}</b></div>
     <div><small>TOTAL</small><b>${money(b.total_price)}</b>${b.promo_code?`<br><small>Promo ${esc(b.promo_code)}</small>`:''}</div>
@@ -304,7 +304,7 @@ $$('[data-bk-act]').forEach(btn=>btn.onclick=async()=>{
 function bkCard(b,i){
   return `<article class="bk-card st-${b.status}" data-card="${b.id}" style="--d:${Math.min(i,10)*45}ms">
     <div class="bk-top"><b>${esc(b.customer_name)}</b><span class="st-pill st-${b.status}">${BADGE[b.status]}</span></div>
-    <div class="bk-meta">${esc(b.service_name)} · ${hoursOf(b)} jam<br>${esc(b.booking_date)} · ${esc(b.booking_time)}<br><small>${esc(b.phone)} · ${money(b.total_price)}${b.promo_code?' · '+esc(b.promo_code):''}</small>${b.notes?`<br><small>${esc(b.notes)}</small>`:''}</div>
+    <div class="bk-meta">${esc(b.service_name)}${b.package_name?' · '+esc(b.package_name):''} · ${hoursOf(b)} jam<br>${esc(b.booking_date)} · ${esc(b.booking_time)}<br><small>${esc(b.phone)} · ${money(b.total_price)}${b.promo_code?' · '+esc(b.promo_code):''}</small>${b.notes?`<br><small>${esc(b.notes)}</small>`:''}</div>
     <div class="bk-btns"><button class="abtn ok" data-q="CONFIRMED" data-id="${b.id}" ${b.status==='CONFIRMED'?'disabled':''}>Confirm</button><button class="abtn blue" data-q="OPEN" data-id="${b.id}">Reschedule</button><button class="abtn done" data-q="COMPLETED" data-id="${b.id}">Selesai</button><button class="abtn bad" data-q="CANCELLED" data-id="${b.id}">Cancel</button></div></article>`;
 }
 function renderQueue(){

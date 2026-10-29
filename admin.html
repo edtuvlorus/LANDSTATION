@@ -2,7 +2,7 @@
 <html lang="id">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="robots" content="noindex,nofollow">
 <title>Dashboard Admin | Land Station</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -42,7 +42,8 @@
       <aside class="admin-side">
         <button class="active" data-tab="overview">Overview</button>
         <button data-tab="appearance">Hero, galeri &amp; event</button>
-        <button data-tab="services">Layanan &amp; harga/jam</button>
+        <button data-tab="services">Kategori &amp; harga/jam</button>
+        <button data-tab="packages">Paket layanan</button>
         <button data-tab="bookings">Booking</button>
         <button data-tab="promos">Kode promo</button>
         <button data-tab="settings">Maps &amp; Instagram</button>
@@ -87,7 +88,8 @@
           <div class="thumb-grid" id="galleryAdmin" style="margin:12px 0"></div>
           <hr style="border:0;border-top:1px solid #ffffff20;margin:22px 0">
 
-          <h3>Banner event</h3>
+          <h3>Banner event (rasio 21:9)</h3>
+          <p class="fineprint">Ukuran ideal <b>2100 × 900 px</b> (21:9). Foto dengan rasio lain dipotong otomatis di bagian tepi. Banner tampil tepat di bawah hero halaman utama.</p>
           <form id="eventForm" class="admin-form">
             <label class="check-row full"><input type="checkbox" id="eventEnabled"> Tampilkan banner event di home</label>
             <label>Judul banner<input id="eventTitleInput" placeholder="LAND STATION COMPETITION"></label>
@@ -101,22 +103,37 @@
         </section>
 
         <section class="admin-panel" id="services">
-          <h2>HARGA PER JAM</h2>
+          <h2>KATEGORI LAYANAN · HARGA PER JAM</h2>
           <p class="muted">Ubah harga langsung di tabel — tersimpan otomatis ke database saat kolom selesai diedit.</p>
           <div class="table-wrap price-table" id="priceTable"></div>
           <hr style="border:0;border-top:1px solid #ffffff20;margin:24px 0">
-          <h2>TAMBAH / EDIT LAYANAN</h2>
+          <h2>TAMBAH / EDIT KATEGORI</h2>
           <form id="serviceForm" class="admin-form">
             <label>Pilih layanan<select id="serviceId"><option value="new">+ Layanan baru</option></select></label>
             <label>Nama layanan<input id="serviceName" required maxlength="80" placeholder="PS5 Station"></label>
             <label>Harga per jam (Rp)<input id="servicePrice" type="number" min="0" step="500" required></label>
-            <label>Slot / unit<input id="serviceSlot" type="number" min="0" required></label>
+            <label>Slot / unit kategori<input id="serviceSlot" type="number" min="0" required></label>
             <label class="full">Deskripsi<textarea id="serviceDesc" rows="2"></textarea></label>
             <label>Foto layanan — otomatis di-upload<input id="serviceFile" type="file" accept="image/*"></label>
             <label>Status<select id="serviceActive"><option value="true">Aktif</option><option value="false">Nonaktif</option></select></label>
             <div class="full preview-box" id="servicePreview"></div>
             <div class="full"><button class="btn">SIMPAN LAYANAN</button> <button class="btn danger" type="button" id="deleteService">HAPUS LAYANAN</button></div>
           </form>
+        </section>
+
+                <section class="admin-panel" id="packages">
+          <h2>PAKET LAYANAN</h2>
+          <p class="muted">Buat paket harga per sekian jam (mis. 3 jam Rp60.000). Setiap paket masuk ke <b>kategori layanan</b> yang dipilih (PS4, PS5, Billiard, Arcade, dst.) dan memakai 1 slot/unit dari kategori tersebut saat dibooking.</p>
+          <form id="packageForm" class="admin-form">
+            <label>Kategori layanan<select id="pkgService" required></select></label>
+            <label>Nama paket<input id="pkgName" required maxlength="60" placeholder="Paket Hemat"></label>
+            <label>Durasi (jam)<input id="pkgHours" type="number" min="1" max="12" value="3" required></label>
+            <label>Harga paket (Rp)<input id="pkgPrice" type="number" min="0" step="500" required></label>
+            <label>Status<select id="pkgActive"><option value="true">Aktif</option><option value="false">Nonaktif</option></select></label>
+            <p class="fineprint full" id="pkgCap"></p>
+            <div class="full"><button class="btn">SIMPAN PAKET</button></div>
+          </form>
+          <div id="pkgList" class="table-wrap price-table" style="margin-top:20px"></div>
         </section>
 
         <section class="admin-panel" id="bookings">

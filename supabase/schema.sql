@@ -263,15 +263,38 @@ end $$;
 revoke all on function public.get_availability(text,date) from public;
 grant execute on function public.get_availability(text,date) to anon, authenticated;
 
+-- ---------- Paket layanan (harga paket / sekian jam, masuk ke kategori layanan) ----------
+-- Kategori layanan = baris di tabel services (PS4, PS5, Billiard, Arcade, dst.) beserta kapasitas slot/unit-nya.
+-- Setiap paket menempel ke satu kategori; saat dibooking, paket memakai 1 slot/unit dari kategori itu.
+create table if not exists public.packages (
+  id uuid primary key default gen_random_uuid(),
+  service_id text not null references public.services(id) on delete cascade,
+  name text not null,
+  hours integer not null check (hours between 1 and 12),
+  price integer not null default 0 check (price >= 0),   -- HARGA PAKET (Rupiah)
+  active boolean not null default true,
+  sort_order integer not null default 0,
+  created_at timestamptz not null default now()
+);
+create index if not exists packages_service_idx on public.packages (service_id, sort_order);
+alter table public.bookings add column if not exists package_name text;
+alter table public.packages enable row level security;
+drop policy if exists "ls packages public read" on public.packages;
+drop policy if exists "ls packages admin all" on public.packages;
+create policy "ls packages public read" on public.packages for select to anon, authenticated using (active = true);
+create policy "ls packages admin all" on public.packages for all to authenticated using (public.is_admin()) with check (public.is_admin());
+
 -- ---------- RPC booking: harga di server + validasi + anti-spam ----------
 drop function if exists public.create_booking(text,text,text,date,text,integer,text,text);
+drop function if exists public.create_booking(text,text,text,date,text,integer,text,text,text);
 create or replace function public.create_booking(
   p_name text, p_phone text, p_service_id text, p_date date, p_time text,
-  p_hours integer, p_promo text default null, p_notes text default '', p_website text default ''
+  p_hours integer, p_promo text default null, p_notes text default '', p_website text default '', p_package_id uuid default null
 ) returns jsonb
 language plpgsql security definer set search_path = public as $$
 declare
   s public.services;
+  pk public.packages; v_hours integer;
   pr public.promos;
   v_base integer; v_total integer; v_id uuid;
   v_promo text := nullif(trim(coalesce(p_promo,'')), '');
@@ -292,7 +315,7 @@ begin
 
   if length(trim(coalesce(p_name,''))) not between 2 and 120 then raise exception 'Nama tidak valid'; end if;
   if length(v_phone) not between 8 and 16 then raise exception 'Nomor WhatsApp tidak valid'; end if;
-  if p_hours is null or p_hours not between 1 and 12 then raise exception 'Durasi tidak valid'; end if;
+  if p_package_id is null and (p_hours is null or p_hours not between 1 and 12) then raise exception 'Durasi tidak valid'; end if;
   v_min := public.ls_parse_time(p_time);
   if v_min is null then raise exception 'Jam tidak valid'; end if;
   if p_date is null or p_date < v_now::date or p_date > v_now::date + 180 then raise exception 'Tanggal tidak valid'; end if;
@@ -321,7 +344,13 @@ begin
   select * into s from public.services where id = p_service_id and active;
   if not found then raise exception 'Layanan tidak tersedia'; end if;
 
-  v_base := s.price * p_hours;
+  if p_package_id is not null then
+    select * into pk from public.packages where id = p_package_id and service_id = s.id and active;
+    if not found then raise exception 'Paket tidak tersedia untuk layanan ini'; end if;
+    v_hours := pk.hours; v_base := pk.price;
+  else
+    v_hours := p_hours; v_base := s.price * p_hours;
+  end if;
   v_total := v_base;
   if v_promo is not null then
     select * into pr from public.promos
@@ -338,16 +367,16 @@ begin
   -- (error otomatis membatalkan seluruh transaksi, termasuk pengurangan slot promo di bawah)
   insert into public.bookings
     (customer_name, phone, service_id, service_name, booking_date, booking_time,
-     duration_minutes, total_price, promo_code, notes, status, client_ip)
+     duration_minutes, total_price, promo_code, notes, status, client_ip, package_name)
   values
     (trim(p_name), trim(p_phone), s.id, s.name, p_date, p_time,
-     p_hours * 60, v_total, case when v_promo is null then null else upper(v_promo) end,
-     left(coalesce(p_notes,''), 500), 'PENDING', v_ip)
+     v_hours * 60, v_total, case when v_promo is null then null else upper(v_promo) end,
+     left(coalesce(p_notes,''), 500), 'PENDING', v_ip, pk.name)
   returning id into v_id;
 
   if v_promo is not null then update public.promos set slots = slots - 1 where id = pr.id; end if;
 
-  return jsonb_build_object('id', v_id, 'total_price', v_total, 'hours', p_hours);
+  return jsonb_build_object('id', v_id, 'total_price', v_total, 'hours', v_hours);
 end $$;
-revoke all on function public.create_booking(text,text,text,date,text,integer,text,text,text) from public;
-grant execute on function public.create_booking(text,text,text,date,text,integer,text,text,text) to anon, authenticated;
+revoke all on function public.create_booking(text,text,text,date,text,integer,text,text,text,uuid) from public;
+grant execute on function public.create_booking(text,text,text,date,text,integer,text,text,text,uuid) to anon, authenticated;

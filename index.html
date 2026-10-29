@@ -2,7 +2,7 @@
 <html lang="id">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Land Station | Tokyo Neon Entertainment Hub</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -52,6 +52,20 @@
     </div>
   </section>
 
+  <section class="wrap banner-section" id="eventSection" hidden>
+    <div class="event-banner">
+      <a class="banner-img" id="eventLink" href="#booking-info"><img id="eventPhoto" src="assets/arcade.svg" alt="Banner event Land Station"></a>
+      <div class="event-panel">
+        <div class="event-text">
+          <span class="eyebrow" id="eventEyebrow">LAND STATION EVENT</span>
+          <h2 id="eventTitle">NEXT LEVEL COMPETITION</h2>
+          <p id="eventDescription">Siap adu skill?</p>
+        </div>
+        <a id="eventCta" class="btn" href="#booking-info">DETAIL EVENT ↗</a>
+      </div>
+    </div>
+  </section>
+
   <section class="wrap section" id="about">
     <div class="section-top"><span class="eyebrow">01 / THE STATION</span><h2>NOT JUST A PLACE.<br><span class="green">A WHOLE EXPERIENCE.</span></h2></div>
     <p class="intro">Land Station adalah pusat hiburan terpadu di bawah Land Group yang memadukan estetika futuristik Tokyo Neon Cyberpunk Midnight dengan rekreasi sosial: arcade, billiard, console gaming, RC car drift, dan café tematik.</p>
@@ -63,25 +77,13 @@
     </div>
   </section>
 
-  <section class="wrap section" id="eventSection" hidden>
-    <div class="event-banner">
-      <div class="event-panel">
-        <span class="eyebrow" id="eventEyebrow">LAND STATION EVENT</span>
-        <h2 id="eventTitle">NEXT LEVEL COMPETITION</h2>
-        <p id="eventDescription">Siap adu skill?</p>
-        <a id="eventCta" class="btn" href="#booking-info">DETAIL EVENT ↗</a>
-      </div>
-      <img id="eventPhoto" src="assets/arcade.svg" alt="Banner event Land Station">
-    </div>
-  </section>
-
   <section class="wrap section" id="gallerySection">
     <div class="section-top"><span class="eyebrow">01 / INSIDE THE STATION</span><h2>STEP INTO THE <span class="green">ATMOSPHERE.</span></h2><p class="muted">Jelajahi suasana dan zona Land Station.</p></div>
     <div class="venue-gallery" id="venueGallery"></div>
   </section>
 
   <section class="wrap section" id="services">
-    <div class="section-top"><span class="eyebrow">02 / SELECT YOUR ZONE</span><h2>CHOOSE YOUR <span class="orange">PLAY MODE.</span></h2><p class="muted">Harga per jam diatur lewat dashboard dan tersimpan di database.</p></div>
+    <div class="section-top"><span class="eyebrow">02 / SELECT YOUR ZONE</span><h2>CHOOSE YOUR <span class="orange">PLAY MODE.</span></h2><p class="muted">Harga per jam dan paket hemat diatur lewat dashboard.</p></div>
     <div class="services" id="servicesGrid"></div>
   </section>
 
@@ -136,7 +138,7 @@
       <div class="time-grid" id="timeGrid"></div>
       <p class="fineprint" id="availNote">Jam yang dicoret sudah penuh untuk layanan, tanggal, dan durasi yang dipilih.</p>
       <input type="hidden" name="time" id="selectedTime" required>
-      <label>Durasi bermain<select name="hours" id="bookHours"></select></label>
+      <label>Durasi / paket<select name="hours" id="bookHours"></select></label>
       <label>Kode promo<input name="promo" id="promoInput" placeholder="Masukkan kode promo" autocomplete="off"></label>
       <div class="promo-msg" id="promoMsg"></div>
       <label>Catatan tambahan<textarea name="notes" rows="2" maxlength="500" placeholder="Catatan tambahan (opsional)"></textarea></label>

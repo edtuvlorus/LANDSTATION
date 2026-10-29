@@ -4,7 +4,7 @@ const DEFAULT_SERVICES=[
   {id:'ps5',name:'PS5 Station',desc:'Next-gen console experience untuk main bareng squad.',price:35000,slot:12,img:'assets/ps5.svg'},
   {id:'billiard',name:'Billiard Table Rent',desc:'Meja pool untuk casual play maupun friendly match.',price:50000,slot:5,img:'assets/billiard.svg'},
   {id:'arcade',name:'Arcade & Retro Gaming',desc:'Rhythm, fighting, dan retro games dalam satu zona.',price:10000,slot:30,img:'assets/arcade.svg'}];
-let services=DEFAULT_SERVICES,promos=[];
+let services=DEFAULT_SERVICES,promos=[],packages=[];
 let site={homepage_media:DEFAULT_HERO,gallery:{items:DEFAULT_GALLERY},event:DEFAULT_EVENT,venue:DEFAULT_VENUE};
 
 /* ----- Navigasi ----- */
@@ -15,8 +15,10 @@ document.addEventListener('click',e=>{if(!menu.contains(e.target)&&!hamb.contain
 $$('a[href^="#"]').forEach(a=>a.addEventListener('click',e=>{const t=$(a.getAttribute('href'));if(!t)return;e.preventDefault();closeMenu();t.scrollIntoView({behavior:'smooth',block:'start'});history.replaceState(null,'',a.getAttribute('href'))}));
 
 /* ----- Render ----- */
+const pkgsOf=id=>packages.filter(p=>p.service_id===id);
+const pkgHTML=id=>{const l=pkgsOf(id);return l.length?`<ul class="pkg-list">${l.map(p=>`<li><span>${esc(p.name)} · ${p.hours} jam</span><b>${money(p.price)}</b></li>`).join('')}</ul>`:''};
 function renderServices(){
-  $('#servicesGrid').innerHTML=services.map(s=>`<article class="service-card"><img src="${esc(s.img||'assets/arcade.svg')}" alt="${esc(s.name)}" loading="lazy"><div class="body"><span class="eyebrow">${String(s.slot).padStart(2,'0')} SLOT / ZONE</span><h3>${esc(s.name)}</h3><p>${esc(s.desc)}</p><div class="price">${money(s.price)} <small>/ jam</small></div><button class="btn" data-open>BOOK THIS ZONE ↗</button></div></article>`).join('');
+  $('#servicesGrid').innerHTML=services.map(s=>`<article class="service-card"><img src="${esc(s.img||'assets/arcade.svg')}" alt="${esc(s.name)}" loading="lazy"><div class="body"><span class="eyebrow">${String(s.slot).padStart(2,'0')} SLOT / ZONE</span><h3>${esc(s.name)}</h3><p>${esc(s.desc)}</p><div class="price">${money(s.price)} <small>/ jam</small></div>${pkgHTML(s.id)}<button class="btn" data-open>BOOK THIS ZONE ↗</button></div></article>`).join('');
   $$('#servicesGrid [data-open]').forEach(b=>b.onclick=openModal);
 }
 function renderHero(){
@@ -33,7 +35,7 @@ function renderGallery(){
 function renderEvent(){
   const ev={...DEFAULT_EVENT,...(site.event||{})},sec=$('#eventSection');sec.hidden=!ev.enabled;if(!ev.enabled)return;
   $('#eventPhoto').src=ev.image||DEFAULT_EVENT.image;$('#eventTitle').textContent=ev.title;$('#eventEyebrow').textContent=ev.eyebrow;
-  $('#eventDescription').textContent=ev.description||'';$('#eventCta').href=ev.cta||'#booking-info';
+  $('#eventDescription').textContent=ev.description||'';$('#eventCta').href=ev.cta||'#booking-info';$('#eventLink').href=ev.cta||'#booking-info';
 }
 function renderVenue(){
   const v={...DEFAULT_VENUE,...(site.venue||{})};
@@ -43,14 +45,16 @@ function renderVenue(){
 function renderAll(){renderServices();renderHero();renderGallery();renderEvent();renderVenue();if(PL.finished)setupReveal()}
 
 async function loadData(){
-  const [svc,set,pr]=await Promise.allSettled([
+  const [svc,set,pr,pk]=await Promise.allSettled([
     sb.from('services').select('id,name,description,price,slot,image_url').eq('active',true).order('sort_order').order('name'),
     sb.from('site_settings').select('key,value'),
-    sb.from('promos').select('code,discount_type,discount_value,slots')]);
+    sb.from('promos').select('code,discount_type,discount_value,slots'),
+    sb.from('packages').select('id,service_id,name,hours,price').eq('active',true).order('sort_order').order('hours')]);
   if(svc.status==='fulfilled'&&!svc.value.error&&svc.value.data?.length)
     services=svc.value.data.map(s=>({id:s.id,name:s.name,desc:s.description,price:s.price,slot:s.slot,img:s.image_url}));
   if(set.status==='fulfilled'&&!set.value.error)(set.value.data||[]).forEach(r=>{site[r.key]=r.value});
   if(pr.status==='fulfilled'&&!pr.value.error)promos=pr.value.data||[];
+  if(pk.status==='fulfilled'&&!pk.value.error)packages=pk.value.data||[];
   renderAll();
 }
 /* ----- Preloader: progres nyata (font, data Supabase, media hero, halaman) ----- */
@@ -104,8 +108,14 @@ $$('[data-close]').forEach(b=>b.addEventListener('click',closeModal));
 modal.addEventListener('click',e=>{if(e.target===modal)closeModal()});
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal()});
 
-function renderBookingServices(){const el=$('#bookService'),old=el.value;el.innerHTML=services.map(s=>`<option value="${esc(s.id)}">${esc(s.name)} — ${money(s.price)}/jam</option>`).join('');if(services.some(s=>s.id===old))el.value=old;el.onchange=loadAvailability}
-function renderHours(){const el=$('#bookHours'),old=el.value||'1';el.innerHTML=[1,2,3,4,5,6,8,10,12].map(h=>`<option value="${h}">${h} jam</option>`).join('');el.value=old;el.onchange=renderTimes}
+function renderBookingServices(){const el=$('#bookService'),old=el.value;el.innerHTML=services.map(s=>`<option value="${esc(s.id)}">${esc(s.name)} — ${money(s.price)}/jam</option>`).join('');if(services.some(s=>s.id===old))el.value=old;el.onchange=()=>{renderHours();loadAvailability()}}
+function renderHours(){
+  const el=$('#bookHours'),old=el.value,s=services.find(x=>x.id===$('#bookService').value),pk=s?pkgsOf(s.id):[];
+  el.innerHTML=[1,2,3,4,5,6,8,10,12].map(h=>`<option value="h:${h}">${h} jam${s?' — '+money(s.price*h):''}</option>`).join('')+(pk.length?`<optgroup label="Paket">${pk.map(p=>`<option value="p:${esc(p.id)}">${esc(p.name)} · ${p.hours} jam — ${money(p.price)}</option>`).join('')}</optgroup>`:'');
+  if([...el.options].some(o=>o.value===old))el.value=old;
+  el.onchange=()=>renderTimes();
+}
+function selDur(){const v=$('#bookHours').value||'h:1';if(v[0]==='p'){const p=packages.find(x=>x.id===v.slice(2));if(p)return{hours:p.hours,pkg:p}}return{hours:+v.slice(2)||1,pkg:null}}
 const dayISO=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 function renderDates(){
   const strip=$('#dateStrip'),chosen=$('#selectedDate');strip.innerHTML='';
@@ -133,7 +143,7 @@ function slotFree(startMin,hours){
   return true;
 }
 function renderTimes(){
-  const grid=$('#timeGrid'),chosen=$('#selectedTime'),hours=+$('#bookHours').value||1;grid.innerHTML='';
+  const grid=$('#timeGrid'),chosen=$('#selectedTime'),hours=selDur().hours;grid.innerHTML='';
   for(let m=9*60;m<=24*60;m+=30){
     const label=`${String(Math.floor(m/60)%24).padStart(2,'0')}.${String(m%60).padStart(2,'0')}`,b=document.createElement('button'),ok=slotFree(m,hours);
     b.type='button';b.textContent=label;b.disabled=!ok;b.className='time-tile'+(chosen.value===label&&ok?' selected':'');
@@ -145,14 +155,14 @@ function renderTimes(){
 }
 function findPromo(code){code=String(code||'').trim().toUpperCase();return code?promos.find(p=>p.code.toUpperCase()===code&&p.slots>0):null}
 function calc(){
-  const s=services.find(x=>x.id===$('#bookService').value),h=+$('#bookHours').value||1;if(!s)return null;
-  const base=s.price*h,p=findPromo($('#promoInput').value);
+  const s=services.find(x=>x.id===$('#bookService').value),d=selDur(),h=d.hours;if(!s)return null;
+  const base=d.pkg?d.pkg.price:s.price*h,p=findPromo($('#promoInput').value);
   let total=base;if(p)total=Math.max(0,p.discount_type==='percent'?base-Math.floor(base*p.discount_value/100):base-p.discount_value);
-  return {s,h,base,total,p};
+  return {s,h,base,total,p,pkg:d.pkg};
 }
 function updateSummary(){
   const c=calc(),box=$('#bookingSummary');if(!c){box.textContent='Pilih layanan.';return}
-  box.innerHTML=`<b>${esc(c.s.name)}</b><br>${money(c.s.price)} / jam × ${c.h} jam · ${$('#selectedDate').value||'Pilih tanggal'} · ${$('#selectedTime').value||'Pilih jam'}<br>Total: <strong>${money(c.total)}</strong>${c.p?` <small>(sudah termasuk promo ${esc(c.p.code)})</small>`:''}`;
+  box.innerHTML=`<b>${esc(c.s.name)}</b><br>${c.pkg?'Paket '+esc(c.pkg.name)+' · '+c.h+' jam':money(c.s.price)+' / jam × '+c.h+' jam'} · ${$('#selectedDate').value||'Pilih tanggal'} · ${$('#selectedTime').value||'Pilih jam'}<br>Total: <strong>${money(c.total)}</strong>${c.p?` <small>(sudah termasuk promo ${esc(c.p.code)})</small>`:''}`;
 }
 $('#promoInput').addEventListener('input',()=>{const code=$('#promoInput').value.trim(),p=findPromo(code);
   $('#promoMsg').textContent=code?(p?`Promo aktif: ${p.discount_type==='percent'?p.discount_value+'%':'potongan '+money(p.discount_value)} (sisa slot promo: ${p.slots})`:'Kode tidak ditemukan / tidak aktif.'):'';updateSummary()});
@@ -162,7 +172,7 @@ function renderServicePicker(){
   options.innerHTML='<div class="service-picker-options-inner">'+services.map(s=>`<button type="button" class="service-option${select.value===s.id?' selected':''}" data-service-id="${esc(s.id)}"><img src="${esc(s.img||'assets/arcade.svg')}" alt=""><span class="service-option-copy"><b>${esc(s.name)}</b><small>${money(s.price)} / jam · ${s.slot} slot/unit</small></span><span>↗</span></button>`).join('')+'</div>';
   const chosen=services.find(s=>s.id===select.value)||services[0];if(chosen){select.value=chosen.id;label.textContent=`${chosen.name} — ${money(chosen.price)}/jam`}
   $$('[data-service-id]',options).forEach(b=>b.onclick=()=>{select.value=b.dataset.serviceId;const s=services.find(x=>x.id===select.value);label.textContent=`${s.name} — ${money(s.price)}/jam`;
-    $$('.service-option',options).forEach(x=>x.classList.toggle('selected',x===b));$('#servicePicker').classList.remove('open');$('#servicePickerTrigger').setAttribute('aria-expanded','false');loadAvailability()});
+    $$('.service-option',options).forEach(x=>x.classList.toggle('selected',x===b));$('#servicePicker').classList.remove('open');$('#servicePickerTrigger').setAttribute('aria-expanded','false');renderHours();loadAvailability()});
 }
 const picker=$('#servicePicker'),trigger=$('#servicePickerTrigger');
 trigger.addEventListener('click',()=>{const o=picker.classList.toggle('open');trigger.setAttribute('aria-expanded',String(o))});
@@ -180,7 +190,7 @@ $('#bookingForm').addEventListener('submit',async e=>{
   if(wait>0){result.textContent=`Tunggu ${Math.ceil(wait/1000)} detik sebelum membuat booking lagi.`;result.classList.add('show','error');return}
   btn.disabled=true;btn.textContent='MENGIRIM BOOKING...';
   try{
-    const {data,error}=await sb.rpc('create_booking',{p_name:f.get('name'),p_phone:f.get('phone'),p_service_id:f.get('service'),p_date:f.get('date'),p_time:f.get('time'),p_hours:+f.get('hours'),p_promo:String(f.get('promo')||'').trim()||null,p_notes:f.get('notes')||'',p_website:''});
+    const {data,error}=await sb.rpc('create_booking',{p_name:f.get('name'),p_phone:f.get('phone'),p_service_id:f.get('service'),p_date:f.get('date'),p_time:f.get('time'),p_hours:selDur().hours,p_package_id:selDur().pkg?.id||null,p_promo:String(f.get('promo')||'').trim()||null,p_notes:f.get('notes')||'',p_website:''});
     if(error)throw error;
     try{localStorage.setItem('ls_last_booking',String(Date.now()))}catch{}
     result.innerHTML=`Booking berhasil dikirim. Kode referensi <b>${esc(String(data.id).slice(0,8).toUpperCase())}</b> · Total ${money(data.total_price)} (${data.hours} jam).`;
