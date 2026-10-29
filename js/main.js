@@ -26,7 +26,7 @@ function renderCatFilter(){
 }
 const priceFor=(s,date)=>{const d=date?new Date(date+'T12:00:00'):new Date();return d.getDay()===0||d.getDay()===6?Number(s.price_weekend??s.price):Number(s.price_weekday??s.price)};
 function renderServices(){
-  renderCatFilter();$('#servicesGrid').innerHTML=services.filter(s=>activeCat==='all'||s.cat===activeCat).map(s=>`<article class="service-card"><img src="${esc(s.img||'assets/arcade.svg')}" alt="${esc(s.name)}" loading="lazy"><div class="body"><span class="eyebrow">${esc(catName(s)||'LAYANAN')} · ${String(s.slot).padStart(2,'0')} UNIT</span><h3>${esc(s.name)}</h3><p>${esc(s.desc)}</p><div class="price">${money(priceFor(s))} <small>/ jam</small></div><button class="btn" data-open>BOOK THIS ZONE ↗</button></div></article>`).join('');
+  renderCatFilter();$('#servicesGrid').innerHTML=services.filter(s=>activeCat==='all'||s.cat===activeCat).map(s=>`<article class="service-card"><img src="${esc(s.img||'assets/arcade.svg')}" alt="${esc(s.name)}" loading="lazy"><div class="body"><span class="eyebrow">${esc(catName(s)||'LAYANAN')} · ${String(s.slot).padStart(2,'0')} UNIT</span><h3>${esc(s.name)}</h3><p>${esc(s.desc)}</p><div class="price-pair"><span><small>WEEKDAY · SEN–JUM</small><b>${money(Number(s.price_weekday??s.price))}</b><em>/ jam</em></span><span><small>WEEKEND · SAB–MIN</small><b>${money(Number(s.price_weekend??s.price))}</b><em>/ jam</em></span></div><button class="btn" data-open>BOOK THIS ZONE ↗</button></div></article>`).join('');
   $$('#servicesGrid [data-open]').forEach(b=>b.onclick=openModal);
 }
 function renderHero(){
@@ -109,14 +109,14 @@ loadData().finally(async()=>{plStep();await Promise.race([heroReady(),new Promis
 /* ----- Booking modal ----- */
 const modal=$('#bookingModal');
 let openedAt=0;
-function openModal(){openedAt=Date.now();modal.classList.add('show');modal.setAttribute('aria-hidden','false');document.body.style.overflow='hidden';renderBookingServices();renderServicePicker();renderDates();renderHours();renderTimes();loadAvailability()}
+function openModal(){openedAt=Date.now();modal.classList.add('show');modal.setAttribute('aria-hidden','false');document.body.style.overflow='hidden';renderBookingServices();renderServicePicker();renderDates();renderBookingPriceNote();renderHours();renderTimes();loadAvailability()}
 function closeModal(){modal.classList.remove('show');modal.setAttribute('aria-hidden','true');document.body.style.overflow=''}
 $$('[data-open]').filter(b=>!b.closest('#servicesGrid')).forEach(b=>b.addEventListener('click',openModal));
 $$('[data-close]').forEach(b=>b.addEventListener('click',closeModal));
 modal.addEventListener('click',e=>{if(e.target===modal)closeModal()});
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal()});
 
-function renderBookingServices(){const el=$('#bookService'),old=el.value;el.innerHTML=services.map(s=>`<option value="${esc(s.id)}">${esc(s.name)} — ${money(priceFor(s,$('#selectedDate')?.value))}/jam</option>`).join('');if(services.some(s=>s.id===old))el.value=old;el.onchange=()=>{renderHours();loadAvailability()}}
+function renderBookingServices(){const el=$('#bookService'),old=el.value;el.innerHTML=services.map(s=>`<option value="${esc(s.id)}">${esc(s.name)} — ${money(priceFor(s,$('#selectedDate')?.value))}/jam</option>`).join('');if(services.some(s=>s.id===old))el.value=old;el.onchange=()=>{renderBookingPriceNote();renderServicePicker();renderHours();renderTimes();loadAvailability()}}
 function renderHours(){
   const el=$('#bookHours'),old=el.value,s=services.find(x=>x.id===$('#bookService').value),price=s?priceFor(s,$('#selectedDate').value):0;
   el.innerHTML=[1,2,3,4,5,6,8,10,12].map(h=>`<option value="h:${h}">${h} jam${s?' — '+money(price*h):''}</option>`).join('');
@@ -130,8 +130,14 @@ function renderDates(){
   for(let i=0;i<21;i++){const d=new Date();d.setHours(12,0,0,0);d.setDate(d.getDate()+i);const iso=dayISO(d),t=document.createElement('button');
     t.type='button';t.className='date-tile'+(chosen.value===iso?' selected':'');
     t.innerHTML=`<span>${i===0?'HARI INI':d.toLocaleDateString('id-ID',{weekday:'short'}).toUpperCase()}</span><b>${d.getDate()}</b><span>${d.toLocaleDateString('id-ID',{month:'short'}).toUpperCase()}</span>`;
-    t.onclick=()=>{chosen.value=iso;$$('.date-tile',strip).forEach(x=>x.classList.remove('selected'));t.classList.add('selected');renderHours();loadAvailability()};strip.appendChild(t)}
+    t.onclick=()=>{chosen.value=iso;$$('.date-tile',strip).forEach(x=>x.classList.remove('selected'));t.classList.add('selected');renderBookingPriceNote();renderBookingServices();renderServicePicker();renderHours();renderTimes();loadAvailability()};strip.appendChild(t)}
   if(!chosen.value){chosen.value=dayISO(new Date());$('.date-tile',strip)?.classList.add('selected')}
+}
+function renderBookingPriceNote(){
+  const box=$('#bookingPriceNote'),date=$('#selectedDate').value,s=services.find(x=>x.id===$('#bookService').value);if(!box)return;
+  if(!date||!s){box.textContent='Pilih tanggal dan layanan untuk melihat harga.';return}
+  const d=new Date(date+'T12:00:00'),weekend=d.getDay()===0||d.getDay()===6,day=d.toLocaleDateString('id-ID',{weekday:'long',day:'numeric',month:'long'}),price=priceFor(s,date);
+  box.innerHTML=`<b>${weekend?'HARGA WEEKEND':'HARGA WEEKDAY'}</b> · ${day}<br><strong>${money(price)} / jam</strong> <span>· Harga otomatis mengikuti tanggal pilihan</span>`;
 }
 const toMin=label=>{const [h,m]=label.split('.').map(Number);return h===0&&m===0?1440:h*60+m};
 let avail=null,availToken=0;
@@ -180,7 +186,7 @@ function renderServicePicker(){
   options.innerHTML='<div class="service-picker-options-inner">'+services.map(s=>`<button type="button" class="service-option${select.value===s.id?' selected':''}" data-service-id="${esc(s.id)}"><img src="${esc(s.img||'assets/arcade.svg')}" alt=""><span class="service-option-copy"><b>${esc(s.name)}</b><small>${catName(s)?esc(catName(s))+' · ':''}${money(priceFor(s,$('#selectedDate')?.value))} / jam · ${s.slot} unit</small></span><span>↗</span></button>`).join('')+'</div>';
   const chosen=services.find(s=>s.id===select.value)||services[0];if(chosen){select.value=chosen.id;label.textContent=`${chosen.name} — ${money(priceFor(chosen,$('#selectedDate').value))}/jam`}
   $$('[data-service-id]',options).forEach(b=>b.onclick=()=>{select.value=b.dataset.serviceId;const s=services.find(x=>x.id===select.value);label.textContent=`${s.name} — ${money(priceFor(s,$('#selectedDate')?.value))}/jam`;
-    $$('.service-option',options).forEach(x=>x.classList.toggle('selected',x===b));$('#servicePicker').classList.remove('open');$('#servicePickerTrigger').setAttribute('aria-expanded','false');renderHours();loadAvailability()});
+    $$('.service-option',options).forEach(x=>x.classList.toggle('selected',x===b));$('#servicePicker').classList.remove('open');$('#servicePickerTrigger').setAttribute('aria-expanded','false');renderBookingPriceNote();renderServicePicker();renderHours();renderTimes();loadAvailability()});
 }
 const picker=$('#servicePicker'),trigger=$('#servicePickerTrigger');
 trigger.addEventListener('click',()=>{const o=picker.classList.toggle('open');trigger.setAttribute('aria-expanded',String(o))});

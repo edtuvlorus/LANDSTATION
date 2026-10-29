@@ -538,3 +538,16 @@ optgroup{font-style:normal}
   .cat-filter{flex-wrap:nowrap;overflow-x:auto;padding-bottom:4px}.chip{flex:0 0 auto}
   .sort-box,.sort-box select,.export-row label,.export-row select,.export-row input,.export-row .btn{width:100%}
 }
+
+
+/* Weekday / weekend price disclosure */
+.price-pair{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px}
+.price-pair>span{display:flex;flex-direction:column;gap:3px;padding:10px 11px;border:1px solid #ffffff18;border-radius:10px;background:#ffffff06}
+.price-pair small{font-size:10px;letter-spacing:.09em;color:var(--muted);font-weight:700}
+.price-pair b{font-size:17px;color:var(--ok)}
+.price-pair em{font-size:11px;color:var(--muted);font-style:normal}
+.booking-price-note{margin:10px 0 16px;padding:12px 14px;border:1px solid #8a75ff55;border-radius:10px;background:#8a75ff12;color:var(--text);font-size:13px;line-height:1.65}
+.booking-price-note b{font-size:11px;letter-spacing:.08em;color:var(--accent,#a99bff)}
+.booking-price-note strong{font-size:18px}
+.booking-price-note span{color:var(--muted);font-size:11px}
+@media(max-width:480px){.price-pair{gap:6px}.price-pair>span{padding:8px}.price-pair b{font-size:15px}.price-pair small{font-size:9px}}
