@@ -9,7 +9,19 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap">
 <link rel="stylesheet" href="css/style.css">
 </head>
-<body>
+<body class="is-loading">
+<div class="preloader" id="preloader" role="status" aria-live="polite" aria-label="Memuat Land Station">
+  <div class="pl-core">
+    <div class="pl-logo">
+      <svg class="pl-ring" viewBox="0 0 170 170" aria-hidden="true"><defs><linearGradient id="plGrad" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ff8a70"/><stop offset=".55" stop-color="#8a75ff"/><stop offset="1" stop-color="#53a8ff"/></linearGradient></defs>
+        <circle class="track" cx="85" cy="85" r="78"/><circle class="arc" cx="85" cy="85" r="78"/><circle class="arc2" cx="85" cy="85" r="66"/></svg>
+      <img src="assets/logo-landstation.png" alt="">
+    </div>
+    <div class="pl-title" aria-hidden="true"></div>
+    <div class="pl-bar"><i id="plBar"></i></div>
+    <div class="pl-meta"><span id="plLabel">MENYIAPKAN STATION</span><b id="plPct">0%</b></div>
+  </div>
+</div>
 <header class="nav">
   <button class="hamb" id="hamb" aria-label="Buka menu"><i></i><i></i><i></i></button>
   <a class="brand" href="#home"><img src="assets/logo-landstation.png" alt="Logo Land Station"></a>

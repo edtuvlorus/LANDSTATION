@@ -49,7 +49,10 @@ async function deleteMedia(path){
   await sb.storage.from(BUCKET).remove([path]);
   await sb.from('media_files').delete().eq('path',path);
 }
-async function withBusy(label,fn){toast(label+'…');try{await fn()}catch(e){fail(e,'Gagal')}}
+async function withBusy(label,fn){
+  const btn=document.activeElement?.closest?.('.btn,.abtn');btn?.classList.add('is-busy');toast(label+'…');
+  try{await fn()}catch(e){fail(e,'Gagal')}finally{btn?.classList.remove('is-busy')}
+}
 
 /* ---------- Auth ---------- */
 const show=(id,v)=>{$(id).hidden=!v};
@@ -75,7 +78,7 @@ async function loadAll(){
   const [sv,pr,bk,md,st]=await Promise.all([
     sb.from('services').select('*').order('sort_order').order('name'),
     sb.from('promos').select('*').order('created_at',{ascending:false}),
-    sb.from('bookings').select('*').order('created_at',{ascending:false}).limit(300),
+    sb.from('bookings').select('*').order('created_at',{ascending:false}).limit(3000),
     sb.from('media_files').select('*').order('created_at',{ascending:false}),
     sb.from('site_settings').select('key,value')]);
   for(const r of [sv,pr,bk,md,st])if(r.error){fail(r.error,'Memuat data');}
@@ -84,13 +87,6 @@ async function loadAll(){
   renderAll();
 }
 function renderAll(){renderOverview();renderHero();renderGallery();renderEventForm();renderPrices();renderServiceSelect();renderBookings();renderPromos();renderVenue();renderLibrary()}
-function renderOverview(){
-  $('#totalBookings').textContent=state.bookings.length;
-  $('#pendingBookings').textContent=state.bookings.filter(b=>b.status==='PENDING').length;
-  $('#activePromos').textContent=state.promos.filter(p=>p.active&&p.slots>0).length;
-  $('#totalMedia').textContent=state.media.length;
-}
-
 /* ---------- Hero ---------- */
 const previewHTML=(m,alt)=>m&&m.url?(m.type==='video'?`<video src="${esc(m.url)}" muted loop autoplay playsinline controls></video>`:`<img src="${esc(m.url)}" alt="${esc(alt)}">`):'<p class="fineprint">Belum ada media.</p>';
 function renderHero(){$('#heroPreview').innerHTML=previewHTML(state.site.homepage_media||DEFAULT_HERO,'Preview hero')}
@@ -115,8 +111,17 @@ $('#heroReset').addEventListener('click',async()=>{
 const galleryItems=()=>state.site.gallery?.items||[];
 function renderGallery(){
   const items=galleryItems(),box=$('#galleryAdmin');
-  box.innerHTML=items.length?items.map((g,i)=>`<div class="thumb">${previewHTML(g,g.title)}<input data-g-title="${i}" value="${esc(g.title||'')}" aria-label="Judul ${i+1}" placeholder="Judul"><button type="button" class="btn danger small" data-g-del="${i}">HAPUS</button></div>`).join(''):'<p class="fineprint">Belum ada file galeri — website memakai gambar bawaan. Upload file untuk menggantinya.</p>';
+  box.innerHTML=items.length?items.map((g,i)=>`<div class="thumb">${previewHTML(g,g.title)}<input data-g-title="${i}" value="${esc(g.title||'')}" aria-label="Judul ${i+1}" placeholder="Judul"><div class="thumb-actions"><label class="btn ghost small file-btn">GANTI<input type="file" hidden accept="image/*,video/mp4,video/webm,video/quicktime" data-g-rep="${i}"></label><button type="button" class="btn danger small" data-g-del="${i}">HAPUS</button></div></div>`).join(''):'<p class="fineprint">Belum ada file galeri — website memakai gambar bawaan. Upload file untuk menggantinya.</p>';
   $$('[data-g-title]',box).forEach(inp=>inp.onchange=()=>withBusy('Menyimpan judul',async()=>{const items=[...galleryItems()];items[+inp.dataset.gTitle]={...items[+inp.dataset.gTitle],title:inp.value.trim()};await saveSetting('gallery',{items});toast('Judul tersimpan ✓')}));
+  $$('[data-g-rep]',box).forEach(inp=>inp.onchange=async()=>{
+    const f=inp.files[0];if(!f)return;const idx=+inp.dataset.gRep;
+    await withBusy('Mengganti file galeri',async()=>{
+      const items=[...galleryItems()],old=items[idx];if(!old)return;
+      const up=await uploadMedia(f,'gallery');
+      items[idx]={...old,url:up.url,type:up.type,path:up.path};
+      await saveSetting('gallery',{items});await deleteMedia(old.path);await refreshMedia();renderGallery();toast('File galeri diganti ✓');
+    });inp.value='';
+  });
   $$('[data-g-del]',box).forEach(b=>b.onclick=()=>{if(!confirm('Hapus file ini dari galeri dan dari Supabase?'))return;
     withBusy('Menghapus',async()=>{const items=[...galleryItems()],[gone]=items.splice(+b.dataset.gDel,1);await saveSetting('gallery',{items});await deleteMedia(gone?.path);await refreshMedia();renderGallery();toast('File galeri dihapus ✓')})});
 }
@@ -199,19 +204,6 @@ $('#deleteService').addEventListener('click',()=>{
   const id=$('#serviceId').value;if(id==='new')return;if(!confirm('Hapus layanan ini? Riwayat booking tetap tersimpan.'))return;
   withBusy('Menghapus layanan',async()=>{const {error}=await sb.from('services').delete().eq('id',id);if(error)throw error;await loadAll();toast('Layanan dihapus ✓')});
 });
-
-/* ---------- Booking ---------- */
-const BADGE={PENDING:'Pending',CONFIRMED:'Confirmed',RESCHEDULED:'Reschedule',CANCELLED:'Cancelled',COMPLETED:'Selesai'};
-function renderBookings(){
-  const box=$('#bookingList');
-  box.innerHTML=state.bookings.length?`<table><thead><tr><th>Booking</th><th>Jadwal</th><th>Total</th><th>Status</th><th>Aksi</th></tr></thead><tbody>${state.bookings.map(b=>`<tr><td><b>${esc(b.id.slice(0,8).toUpperCase())}</b><br>${esc(b.customer_name)}<br><small>${esc(b.phone)}</small>${b.notes?`<br><small>${esc(b.notes)}</small>`:''}</td><td>${esc(b.service_name)}<br>${esc(b.booking_date)} · ${esc(b.booking_time)} · ${Math.round(b.duration_minutes/60*10)/10} jam${b.promo_code?`<br><small>Promo ${esc(b.promo_code)}</small>`:''}</td><td>${money(b.total_price)}</td><td class="badge">${BADGE[b.status]||esc(b.status)}</td><td><button data-act="CONFIRMED" data-id="${b.id}">Confirm</button><button data-act="RESCHEDULE" data-id="${b.id}">Reschedule</button><button data-act="CANCELLED" data-id="${b.id}">Cancel</button><button data-act="COMPLETED" data-id="${b.id}">Selesai</button></td></tr>`).join('')}</tbody></table>`:'<p class="muted">Belum ada booking.</p>';
-  $$('[data-act]',box).forEach(btn=>btn.onclick=()=>withBusy('Memperbarui booking',async()=>{
-    const b=state.bookings.find(x=>x.id===btn.dataset.id);let patch;
-    if(btn.dataset.act==='RESCHEDULE'){const d=prompt('Tanggal baru (YYYY-MM-DD)',b.booking_date);if(!d)return;const t=prompt('Jam baru (HH.MM)',b.booking_time);if(!t)return;patch={booking_date:d,booking_time:t,status:'RESCHEDULED'}}
-    else patch={status:btn.dataset.act};
-    const {error}=await sb.from('bookings').update(patch).eq('id',b.id);if(error)throw error;Object.assign(b,patch);renderBookings();renderOverview();toast('Booking diperbarui ✓');
-  }));
-}
 
 /* ---------- Promo ---------- */
 function renderPromos(){

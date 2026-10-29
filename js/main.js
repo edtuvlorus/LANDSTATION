@@ -40,7 +40,7 @@ function renderVenue(){
   $('#mapsLink').href=v.maps||DEFAULT_VENUE.maps;$('#instagramLink').href=v.instagram||DEFAULT_VENUE.instagram;
   if(v.address){$('#venueAddressText').textContent=v.address;$('#mapFrame').src='https://maps.google.com/maps?q='+encodeURIComponent(v.address)+'&t=&z=15&ie=UTF8&iwloc=&output=embed'}
 }
-function renderAll(){renderServices();renderHero();renderGallery();renderEvent();renderVenue()}
+function renderAll(){renderServices();renderHero();renderGallery();renderEvent();renderVenue();if(PL.finished)setupReveal()}
 
 async function loadData(){
   const [svc,set,pr]=await Promise.allSettled([
@@ -53,7 +53,46 @@ async function loadData(){
   if(pr.status==='fulfilled'&&!pr.value.error)promos=pr.value.data||[];
   renderAll();
 }
-renderAll();loadData();
+/* ----- Preloader: progres nyata (font, data Supabase, media hero, halaman) ----- */
+const PL={done:0,total:4,t0:performance.now(),finished:false};
+(function buildTitle(){const t=document.querySelector('.pl-title');if(t)t.innerHTML=[...'LAND STATION'].map((c,i)=>`<span style="--i:${i}">${c===' '?'&nbsp;':c}</span>`).join('')})();
+const PL_LABELS=['MENYIAPKAN STATION','MEMUAT LAYANAN & HARGA','MEMUAT VISUAL','HAMPIR SIAP'];
+function plStep(){
+  PL.done=Math.min(PL.done+1,PL.total);const p=Math.round(PL.done/PL.total*100);
+  $('#plBar').style.setProperty('--p',p+'%');$('#plPct').textContent=p+'%';$('#plLabel').textContent=PL_LABELS[Math.min(PL.done,PL_LABELS.length-1)];
+  if(PL.done>=PL.total)plFinish();
+}
+function plFinish(){
+  if(PL.finished)return;PL.finished=true;
+  const wait=Math.max(0,1500-(performance.now()-PL.t0));
+  setTimeout(()=>{
+    $('#plBar').style.setProperty('--p','100%');$('#plPct').textContent='100%';
+    $('#preloader').classList.add('done');document.body.classList.remove('is-loading');document.body.classList.add('ready');
+    setTimeout(()=>{$('#preloader')?.remove();setupReveal()},900);
+  },wait);
+}
+const heroReady=()=>new Promise(res=>{
+  const el=$('#heroPhoto');if(!el)return res();
+  if(el.tagName==='VIDEO'){if(el.readyState>=2)return res();el.addEventListener('loadeddata',res,{once:true});el.addEventListener('error',res,{once:true})}
+  else{if(el.complete&&el.naturalWidth)return res();el.addEventListener('load',res,{once:true});el.addEventListener('error',res,{once:true})}
+});
+setTimeout(()=>{PL.done=PL.total-1;plStep()},8000); // pengaman: jangan menahan pengunjung lebih dari 8 detik
+(document.fonts?.ready||Promise.resolve()).then(plStep);
+(document.readyState==='complete'?Promise.resolve():new Promise(r=>addEventListener('load',r,{once:true}))).then(plStep);
+
+/* ----- Reveal saat scroll ----- */
+let revealIO=null;
+function setupReveal(){
+  if(matchMedia('(prefers-reduced-motion:reduce)').matches||!('IntersectionObserver' in window))return;
+  revealIO=revealIO||new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');revealIO.unobserve(e.target)}}),{threshold:.12,rootMargin:'0px 0px -40px 0px'});
+  document.querySelectorAll('.section-top,.mini-grid article,.service-card,.gallery-card,.booking-strip,.mapbox,.event-banner,.intro').forEach((el,i)=>{
+    if(el.classList.contains('rv'))return;
+    el.style.setProperty('--rd',(i%4)*80+'ms');el.classList.add('rv');revealIO.observe(el);
+  });
+}
+
+renderAll();
+loadData().finally(async()=>{plStep();await Promise.race([heroReady(),new Promise(r=>setTimeout(r,4000))]);plStep();if(PL.finished)setupReveal()});
 
 /* ----- Booking modal ----- */
 const modal=$('#bookingModal');

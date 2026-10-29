@@ -257,3 +257,189 @@ td button:hover{border-color:var(--violet)}
   .admin-link{font-size:9px;padding:8px}
 }
 @media(prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;transition-duration:.01ms!important;scroll-behavior:auto!important}}
+
+/* =====================================================================
+   DASHBOARD — overview, papan jadwal, kartu booking, animasi tombol
+   ===================================================================== */
+:root{--ease:cubic-bezier(.22,1,.36,1)}
+
+/* ---------- Animasi tombol (halus) ---------- */
+.btn,.abtn,td button,.admin-side button,.close,.hamb,.date-tile,.time-tile{position:relative;overflow:hidden;-webkit-tap-highlight-color:transparent}
+.btn{transition:transform .35s var(--ease),box-shadow .35s var(--ease),filter .25s,opacity .25s}
+.btn:hover{transform:translateY(-3px);box-shadow:0 10px 28px #8875ff55}
+.btn:active{transform:translateY(0) scale(.96);transition-duration:.1s}
+.btn.is-busy,.abtn.is-busy{pointer-events:none;opacity:.75}
+.btn.is-busy::after,.abtn.is-busy::after{content:"";width:12px;height:12px;margin-left:8px;border-radius:50%;border:2px solid #fff6;border-top-color:#fff;animation:spin .7s linear infinite}
+.ripple{position:absolute;border-radius:50%;background:#ffffff55;transform:scale(0);animation:ripple .65s var(--ease);pointer-events:none}
+@keyframes ripple{to{transform:scale(4);opacity:0}}
+@keyframes spin{to{transform:rotate(360deg)}}
+.admin-side button{transition:background .3s var(--ease),border-color .3s,color .3s,transform .3s var(--ease),padding .3s var(--ease)}
+.admin-side button:hover{transform:translateX(4px)}
+.admin-side button.active{padding-left:18px}
+td button{transition:background .25s,border-color .25s,transform .25s var(--ease)}
+td button:hover{transform:translateY(-2px)}
+td button:active{transform:scale(.94)}
+.admin-panel.active{animation:panelIn .5s var(--ease) both}
+@keyframes panelIn{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+.admin-form input,.admin-form select,.admin-form textarea,.login-card input{transition:border-color .25s,box-shadow .25s}
+.admin-form input:focus,.admin-form select:focus,.admin-form textarea:focus,.login-card input:focus,.board-bar input:focus,.rs-row input:focus,.rs-row select:focus{outline:none;border-color:var(--violet);box-shadow:0 0 0 3px #a09aff2e}
+.thumb{transition:transform .35s var(--ease),border-color .3s,box-shadow .3s;animation:panelIn .5s var(--ease) both}
+.thumb:hover{transform:translateY(-4px);border-color:#8e8aff66;box-shadow:0 12px 28px #0006}
+.thumb-actions{display:flex;gap:6px}.thumb-actions .btn{flex:1;padding:8px 6px}
+.file-btn{cursor:pointer}
+.toast{transition:opacity .35s var(--ease),transform .45s var(--ease)}
+.login-card{animation:panelIn .6s var(--ease) both}
+
+/* ---------- Overview ---------- */
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:12px}
+.stat{padding:16px;background:linear-gradient(145deg,#151827,#0a0c16);border:1px solid #8e8aff30;border-radius:14px;display:grid;gap:4px;
+  animation:panelIn .55s var(--ease) both;transition:transform .35s var(--ease),border-color .3s,box-shadow .3s}
+.stat:nth-child(2){animation-delay:.04s}.stat:nth-child(3){animation-delay:.08s}.stat:nth-child(4){animation-delay:.12s}.stat:nth-child(5){animation-delay:.16s}.stat:nth-child(n+6){animation-delay:.2s}
+.stat:hover{transform:translateY(-4px);border-color:#8c88ff80;box-shadow:0 12px 30px #0006}
+.stat small{font:700 9px var(--display);letter-spacing:1.5px;color:var(--muted)}
+.stat b{font:800 24px var(--display);color:var(--violet);word-break:break-word}
+.stat em{font-style:normal;font-size:11px;color:#8089a0;min-height:14px}
+.stat.hero-stat{grid-column:span 2;background:linear-gradient(135deg,#2a1f55,#10183a);border-color:#a09aff77}
+.stat.hero-stat b{font-size:32px;color:var(--ok)}
+.ov-cols{display:grid;grid-template-columns:1.4fr 1fr;gap:14px;margin-top:16px}
+.ov-box{padding:16px;background:#080b13;border:1px solid #ffffff18;border-radius:14px}
+.bars{display:flex;align-items:flex-end;gap:10px;height:170px;padding-top:18px}
+.bar{flex:1;height:100%;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:6px;min-width:0}
+.bar i{display:block;width:100%;max-width:42px;height:var(--h);border-radius:7px 7px 3px 3px;background:var(--grad);transform-origin:bottom;animation:grow .8s var(--ease) both;animation-delay:var(--d)}
+.bar small{font-size:10px;color:var(--muted)}.bar-val{font-size:9px;color:var(--ok);white-space:nowrap}
+@keyframes grow{from{transform:scaleY(0)}}
+.rank-row{display:grid;grid-template-columns:24px 1fr auto;gap:8px;align-items:center;padding:9px 0;border-bottom:1px solid #ffffff12;font-size:12px;animation:panelIn .5s var(--ease) both;animation-delay:var(--d)}
+.rank-row b{color:var(--orange);font-family:var(--display)}.rank-row em{font-style:normal;color:var(--muted);font-size:11px}
+
+/* ---------- Status ---------- */
+.st-pill{display:inline-block;padding:3px 9px;border-radius:99px;font-size:10px;font-weight:700;letter-spacing:.5px;background:#ffffff12;color:#d4d8ff}
+.st-pill.st-PENDING{background:#ffb34722;color:#ffcf85}.st-pill.st-CONFIRMED{background:#6be3a422;color:#8ff0bd}
+.st-pill.st-RESCHEDULED{background:#70baff22;color:#9bd0ff}.st-pill.st-COMPLETED{background:#a09aff22;color:#c4c0ff}.st-pill.st-CANCELLED{background:#ff6b7a22;color:#ff9aa5}
+
+/* ---------- Tombol aksi booking ---------- */
+.abtn{padding:9px 14px;border-radius:9px;border:1px solid #ffffff26;background:#ffffff0c;color:#fff;font:600 12px var(--body);cursor:pointer;
+  transition:transform .3s var(--ease),background .25s,border-color .25s,box-shadow .3s,opacity .2s}
+.abtn:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 8px 20px #0007}
+.abtn:active:not(:disabled){transform:scale(.94);transition-duration:.08s}
+.abtn:disabled{opacity:.35;cursor:not-allowed}
+.abtn.ok{border-color:#6be3a466;color:#9bf2c4}.abtn.ok:hover:not(:disabled){background:#6be3a422}
+.abtn.blue{border-color:#70baff66;color:#a6d6ff}.abtn.blue:hover:not(:disabled){background:#70baff22}
+.abtn.done{border-color:#a09aff66;color:#cfcbff}.abtn.done:hover:not(:disabled){background:#a09aff22}
+.abtn.bad{border-color:#ff6b7a66;color:#ffb0b8}.abtn.bad:hover:not(:disabled){background:#ff6b7a22}
+
+/* ---------- Papan jadwal ---------- */
+.board-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:14px 0}
+.board-bar input{padding:9px 10px;background:#05070b;border:1px solid #ffffff25;border-radius:8px;color:#fff;color-scheme:dark}
+.board-legend{margin-left:auto;font-size:11px;color:var(--muted);display:flex;align-items:center;gap:6px}
+.lg{display:inline-block;width:12px;height:12px;border-radius:3px;margin-left:8px}
+.lg.free{background:#6be3a455}.lg.busy{background:#8a75ff}.lg.bad{background:#ff6b7a55}
+.board-scroll{overflow:auto;border:1px solid #ffffff1c;border-radius:14px;background:#06080f;max-height:70vh}
+.board{min-width:max-content;position:relative}
+.b-row{display:flex;border-bottom:1px solid #ffffff12}
+.b-label{position:sticky;left:0;z-index:5;flex:0 0 110px;width:110px;padding:10px;background:#0b0e18;border-right:1px solid #ffffff1c;display:flex;flex-direction:column;justify-content:center;gap:2px;font-size:12px}
+.b-label small{color:var(--muted);font-size:10px}
+.b-head{position:sticky;top:0;z-index:8;background:#0b0e18}
+.b-head .b-label{font:700 9px var(--display);letter-spacing:1.5px;color:var(--violet);z-index:9}
+.b-hour{display:inline-block;height:32px;line-height:32px;font-size:10px;color:var(--muted);border-left:1px solid #ffffff10;padding-left:4px;overflow:visible;white-space:nowrap}
+.b-hour.major{border-left-color:#ffffff22;color:#cfd4ff}
+.b-head .b-track{display:flex}
+.b-track{position:relative;flex:0 0 auto}
+.b-cell{position:absolute;top:0;bottom:0;border-left:1px solid #ffffff08;transition:background .2s}
+.b-cell.major{border-left-color:#ffffff14}
+.b-cell.ok{background:#6be3a418}.b-cell.no{background:#ff6b7a14}
+.b-cell.hover{background:#6be3a43d;box-shadow:inset 0 0 0 1px #6be3a4aa}
+.b-cell.no.hover{background:#ff6b7a40;box-shadow:inset 0 0 0 1px #ff6b7aaa}
+.now-line{position:absolute;top:0;bottom:0;width:2px;background:var(--orange);box-shadow:0 0 10px var(--orange);z-index:3;pointer-events:none}
+.b-card{position:absolute;height:42px;padding:4px 8px;border-radius:9px;background:linear-gradient(135deg,#5b4fd6,#3a2fa0);border:1px solid #c3bfff66;color:#fff;cursor:pointer;z-index:2;overflow:hidden;
+  display:flex;flex-direction:column;justify-content:center;line-height:1.2;
+  transition:transform .3s var(--ease),box-shadow .3s,opacity .35s,filter .3s;animation:cardIn .5s var(--ease) both}
+.b-card:hover{transform:translateY(-2px);box-shadow:0 8px 22px #0009;z-index:4}
+.b-card small{font-size:9.5px;opacity:.8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.b-card.st-PENDING{background:linear-gradient(135deg,#a66a1a,#6d4410);border-color:#ffcf8577}
+.b-card.st-CONFIRMED{background:linear-gradient(135deg,#1f8f60,#115b3d);border-color:#8ff0bd77}
+.b-card.st-RESCHEDULED{background:linear-gradient(135deg,#2a76b5,#1a4c7a);border-color:#9bd0ff77}
+.b-name{display:flex;align-items:center;gap:4px;font-weight:700;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none;padding:1px 2px;border-radius:5px;transition:background .2s}
+.b-name:hover{background:#ffffff22}.b-name:active{cursor:grabbing}
+.grip{font-style:normal;opacity:.6;letter-spacing:-2px;font-size:11px}
+.b-card.dragging{opacity:.25;filter:grayscale(.6)}
+.b-ghost{position:fixed;z-index:90;margin:0;pointer-events:none;transform:scale(1.06) rotate(-1.5deg);box-shadow:0 18px 40px #000c;opacity:.95;animation:none;transition:box-shadow .2s,border-color .2s}
+.b-ghost.good{border-color:#6be3a4;box-shadow:0 0 0 2px #6be3a4,0 18px 40px #000c}
+.b-ghost.bad{border-color:#ff6b7a;box-shadow:0 0 0 2px #ff6b7a,0 18px 40px #000c}
+.b-ghost::after{content:attr(data-tip);position:absolute;left:0;top:100%;margin-top:6px;padding:4px 9px;border-radius:7px;background:#12152a;border:1px solid #ffffff33;font-size:11px;white-space:nowrap}
+body.is-dragging{cursor:grabbing;user-select:none;-webkit-user-select:none}
+body.is-dragging .board-scroll{scroll-behavior:auto}
+@keyframes cardIn{from{opacity:0;transform:scale(.9)}to{opacity:1;transform:none}}
+
+/* ---------- Kartu antrian ---------- */
+.bk-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:12px;margin-top:10px}
+.bk-card{padding:14px;background:linear-gradient(145deg,#151827,#0a0c16);border:1px solid #8e8aff30;border-radius:14px;cursor:pointer;display:grid;gap:10px;
+  animation:panelIn .5s var(--ease) both;animation-delay:var(--d,0ms);transition:transform .35s var(--ease),border-color .3s,box-shadow .3s}
+.bk-card:hover{transform:translateY(-4px);border-color:#8c88ff80;box-shadow:0 12px 30px #0006}
+.bk-top{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.bk-top b{font:700 14px var(--display)}
+.bk-meta{font-size:12px;color:#c5cbd4;line-height:1.6}
+.bk-btns,.bk-actions{display:flex;flex-wrap:wrap;gap:6px}
+.bk-card.leaving,.b-card.leaving{animation:none;transition:opacity .35s var(--ease),transform .4s var(--ease);opacity:0;transform:scale(.8) translateY(-8px);pointer-events:none}
+.bk-card.leaving{max-height:0}
+.history{margin-top:22px;border:1px solid #ffffff18;border-radius:12px;padding:12px 14px;background:#080b13}
+.history summary{cursor:pointer;font:700 11px var(--display);letter-spacing:1px;color:var(--violet);transition:color .25s}
+.history summary:hover{color:#fff}
+.history[open] .table-wrap{animation:panelIn .4s var(--ease) both;margin-top:10px}
+
+/* ---------- Pop up detail booking ---------- */
+.bk-detail,.move-box{width:min(560px,100%)}
+.bk-info{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
+.bk-info>div{padding:10px 12px;background:#ffffff08;border:1px solid #ffffff14;border-radius:10px;display:grid;gap:3px;font-size:13px}
+.bk-info .full{grid-column:1/-1}.bk-info small{font:700 9px var(--display);letter-spacing:1.2px;color:var(--muted)}
+.bk-resched{padding:14px;margin-bottom:14px;border:1px solid #70baff44;border-radius:12px;background:#70baff0d;transition:opacity .3s}
+.bk-resched.muted-box{opacity:.45;pointer-events:none}
+.bk-resched h3{margin:0 0 10px}
+.rs-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.rs-row label{font-size:11px;color:var(--muted)}
+.rs-row input,.rs-row select{display:block;width:100%;margin-top:5px;padding:10px;background:#05070b;border:1px solid #ffffff25;border-radius:8px;color:#fff;color-scheme:dark}
+.hint-ok{color:var(--ok)!important}.hint-bad{color:#ff9aa5!important}
+.move-box h2{font:800 22px var(--display);margin:8px 0}
+.move-box .bk-actions{margin-top:16px}
+.wa-fallback{position:fixed;right:18px;bottom:76px;z-index:70;padding:12px 16px;border-radius:12px;background:#128c4a;color:#fff;font-weight:700;font-size:13px;box-shadow:0 10px 30px #000a;
+  opacity:0;transform:translateY(16px);pointer-events:none;transition:opacity .35s var(--ease),transform .45s var(--ease)}
+.wa-fallback.show{opacity:1;transform:none;pointer-events:auto}
+
+@media(max-width:700px){.ov-cols{grid-template-columns:1fr}.stat.hero-stat{grid-column:1/-1}.bk-info,.rs-row{grid-template-columns:1fr}.board-legend{margin-left:0}.b-label{flex-basis:84px;width:84px}}
+
+/* =====================================================================
+   PRELOADER (index) — neon, progres mengikuti data yang benar-benar dimuat
+   ===================================================================== */
+.preloader{position:fixed;inset:0;z-index:100;display:grid;place-items:center;background:var(--bg);
+  transition:opacity .7s var(--ease),visibility .7s,transform .9s var(--ease);clip-path:circle(150% at 50% 50%)}
+.preloader.done{opacity:0;visibility:hidden;transform:scale(1.06);pointer-events:none}
+.pl-core{display:grid;justify-items:center;gap:22px;width:min(360px,80vw)}
+.pl-logo{position:relative;width:170px;height:170px;display:grid;place-items:center}
+.pl-logo img{width:110px;height:78px;object-fit:contain;animation:plFloat 2.4s ease-in-out infinite;filter:drop-shadow(0 0 14px #ff8a7088)}
+.pl-ring{position:absolute;inset:0;width:100%;height:100%}
+.pl-ring circle{fill:none;stroke-width:3;stroke-linecap:round}
+.pl-ring .track{stroke:#ffffff14}
+.pl-ring .arc{stroke:url(#plGrad);stroke-dasharray:90 400;transform-origin:50% 50%;animation:plSpin 1.5s linear infinite;filter:drop-shadow(0 0 6px #8a75ff)}
+.pl-ring .arc2{stroke:#ff8a70aa;stroke-dasharray:30 460;transform-origin:50% 50%;animation:plSpin 2.4s linear infinite reverse}
+.pl-title{font:800 16px var(--display);letter-spacing:6px;display:flex;gap:2px}
+.pl-title span{display:inline-block;opacity:0;transform:translateY(12px);animation:plLetter .6s var(--ease) forwards;animation-delay:calc(var(--i)*70ms)}
+.pl-bar{width:100%;height:5px;border-radius:99px;background:#ffffff12;overflow:hidden}
+.pl-bar i{display:block;height:100%;width:var(--p,0%);border-radius:inherit;background:var(--grad);box-shadow:0 0 14px #8a75ffaa;transition:width .45s var(--ease)}
+.pl-meta{display:flex;justify-content:space-between;width:100%;font:600 10px var(--display);letter-spacing:2px;color:var(--muted)}
+.pl-meta b{color:var(--violet)}
+@keyframes plSpin{to{transform:rotate(360deg)}}
+@keyframes plFloat{50%{transform:translateY(-6px) scale(1.04)}}
+@keyframes plLetter{to{opacity:1;transform:none}}
+body.is-loading{overflow:hidden}
+
+/* ---------- Reveal on scroll (index) ---------- */
+.rv{opacity:0;transform:translateY(26px);transition:opacity .8s var(--ease),transform .9s var(--ease);transition-delay:var(--rd,0ms)}
+.rv.in{opacity:1;transform:none}
+.hero-copy>*{animation:heroIn .9s var(--ease) both;animation-play-state:paused}
+body.ready .hero-copy>*{animation-play-state:running}
+.hero-copy>*:nth-child(2){animation-delay:.1s}.hero-copy>*:nth-child(3){animation-delay:.2s}.hero-copy>*:nth-child(4){animation-delay:.3s}.hero-copy>*:nth-child(5){animation-delay:.4s}
+.hero-media{animation:heroIn 1s var(--ease) .25s both;animation-play-state:paused}
+body.ready .hero-media{animation-play-state:running}
+@keyframes heroIn{from{opacity:0;transform:translateY(30px)}to{opacity:1;transform:none}}
+.btn:hover b{display:inline-block;transform:translate(2px,-2px)}
+.btn b{transition:transform .3s var(--ease)}
+.admin-content,.admin-grid>*{min-width:0}

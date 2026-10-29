@@ -52,13 +52,24 @@
       <div class="admin-content">
         <section class="admin-panel active" id="overview">
           <h2>CONTROL OVERVIEW</h2>
-          <div class="counts">
-            <div><b id="totalBookings">0</b><small>TOTAL BOOKING</small></div>
-            <div><b id="pendingBookings">0</b><small>PENDING</small></div>
-            <div><b id="activePromos">0</b><small>PROMO AKTIF</small></div>
-            <div><b id="totalMedia">0</b><small>FILE MEDIA</small></div>
+          <div class="stat-grid" id="statGrid">
+            <div class="stat hero-stat"><small>OMSET HARI INI</small><b id="revToday" data-money>Rp0</b><em id="revTodayNote">0 booking selesai</em></div>
+            <div class="stat"><small>OMSET BULAN INI</small><b id="revMonth" data-money>Rp0</b><em id="revMonthNote"></em></div>
+            <div class="stat"><small>TOTAL OMSET</small><b id="revAll" data-money>Rp0</b><em>semua booking selesai</em></div>
+            <div class="stat"><small>BOOKING HARI INI</small><b id="bookToday">0</b><em id="bookTodayNote"></em></div>
+            <div class="stat"><small>TOTAL BOOKING</small><b id="totalBookings">0</b><em>termasuk riwayat</em></div>
+            <div class="stat"><small>PENDING</small><b id="pendingBookings">0</b><em>menunggu konfirmasi</em></div>
+            <div class="stat"><small>CONFIRMED</small><b id="confirmedBookings">0</b><em>siap bermain</em></div>
+            <div class="stat"><small>SELESAI</small><b id="doneBookings">0</b><em id="cancelNote"></em></div>
+            <div class="stat"><small>POTENSI OMSET AKTIF</small><b id="revPotential" data-money>Rp0</b><em>booking belum selesai</em></div>
+            <div class="stat"><small>PROMO AKTIF</small><b id="activePromos">0</b><em>kode promo</em></div>
+            <div class="stat"><small>FILE MEDIA</small><b id="totalMedia">0</b><em>di Supabase</em></div>
           </div>
-          <p class="muted" style="margin-top:22px">Pilih modul di sisi kiri. Upload foto/video langsung tersimpan begitu file dipilih; perubahan teks tersimpan saat tombol simpan ditekan.</p>
+          <div class="ov-cols">
+            <div class="ov-box"><h3>OMSET 7 HARI TERAKHIR</h3><div class="bars" id="revBars"></div></div>
+            <div class="ov-box"><h3>LAYANAN TERLARIS</h3><div id="topServices" class="rank"></div></div>
+          </div>
+          <p class="muted" style="margin-top:22px">Omset dihitung dari booking berstatus <b>Selesai</b>. Kartu yang sudah selesai hilang dari papan jadwal, tetapi datanya tetap tersimpan di Supabase dan tetap masuk omset.</p>
         </section>
 
         <section class="admin-panel" id="appearance">
@@ -71,6 +82,7 @@
           <hr style="border:0;border-top:1px solid #ffffff20;margin:22px 0">
 
           <h3>Galeri home (foto &amp; video)</h3>
+          <p class="fineprint">Tambah file baru, <b>GANTI</b> file yang ada tanpa mengubah urutan, atau <b>HAPUS</b>. Semua otomatis tersimpan di Supabase.</p>
           <label class="field-label">Tambah file galeri (boleh banyak) — otomatis tersimpan<input type="file" id="galleryFiles" accept="image/*,video/mp4,video/webm,video/quicktime" multiple style="display:block;width:100%;margin-top:6px;padding:9px;background:#05070b;border:1px solid #ffffff25;border-radius:8px;color:#fff"></label>
           <div class="thumb-grid" id="galleryAdmin" style="margin:12px 0"></div>
           <hr style="border:0;border-top:1px solid #ffffff20;margin:22px 0">
@@ -109,8 +121,18 @@
 
         <section class="admin-panel" id="bookings">
           <h2>BOOKING</h2>
-          <p class="muted">Data booking dari semua perangkat. Aksi langsung tersimpan ke database.</p>
-          <div id="bookingList" class="table-wrap"></div>
+          <p class="muted">Klik kartu untuk detail &amp; reschedule. Atau <b>tekan &amp; tahan nama</b> di kartu, lalu <b>drag ke jam yang kosong</b>. Setiap tombol aksi mengirim pesan WhatsApp otomatis ke customer.</p>
+          <div class="board-bar">
+            <button class="btn ghost small" id="dayPrev" type="button">◀</button>
+            <input type="date" id="boardDate" aria-label="Tanggal papan jadwal">
+            <button class="btn ghost small" id="dayNext" type="button">▶</button>
+            <button class="btn small" id="dayToday" type="button">HARI INI</button>
+            <span class="board-legend"><i class="lg free"></i>kosong <i class="lg busy"></i>terisi <i class="lg bad"></i>penuh</span>
+          </div>
+          <div class="board-scroll" id="boardScroll"><div class="board" id="board"></div></div>
+          <h3 style="margin-top:26px">ANTRIAN BOOKING <small class="muted" id="queueCount"></small></h3>
+          <div class="bk-cards" id="bookingList"></div>
+          <details class="history" id="historyBox"><summary>RIWAYAT (SELESAI &amp; CANCEL) <small id="historyCount"></small></summary><div class="table-wrap" id="historyList"></div></details>
         </section>
 
         <section class="admin-panel" id="promos">
@@ -145,11 +167,48 @@
     </div>
   </section>
 </main>
+<!-- Detail & reschedule booking -->
+<div class="modal" id="bkModal" aria-hidden="true">
+  <div class="glass bk-detail">
+    <div class="modal-head"><div><span class="eyebrow" id="bkRef">BOOKING</span><h2 id="bkName">—</h2></div><button class="close" type="button" data-bk-close aria-label="Tutup">×</button></div>
+    <div class="bk-info" id="bkInfo"></div>
+    <div class="bk-resched">
+      <h3>RESCHEDULE</h3>
+      <div class="rs-row">
+        <label>Tanggal baru<input type="date" id="rsDate"></label>
+        <label>Jam baru<select id="rsTime"></select></label>
+      </div>
+      <p class="fineprint" id="rsHint"></p>
+    </div>
+    <div class="bk-actions">
+      <button class="abtn ok" type="button" data-bk-act="CONFIRMED">Confirm</button>
+      <button class="abtn blue" type="button" data-bk-act="RESCHEDULE">Reschedule</button>
+      <button class="abtn done" type="button" data-bk-act="COMPLETED">Selesai</button>
+      <button class="abtn bad" type="button" data-bk-act="CANCELLED">Cancel</button>
+    </div>
+    <p class="fineprint">Setiap aksi menyimpan ke Supabase lalu membuka WhatsApp dengan pesan otomatis ke customer.</p>
+  </div>
+</div>
+
+<!-- Konfirmasi hasil drag -->
+<div class="modal" id="moveModal" aria-hidden="true">
+  <div class="glass move-box">
+    <span class="eyebrow">PINDAH JADWAL</span>
+    <h2 id="mvTitle">—</h2>
+    <p id="mvText" class="muted"></p>
+    <div class="bk-actions">
+      <button class="abtn blue" type="button" id="mvOk">Ya, pindahkan &amp; kirim WA</button>
+      <button class="abtn" type="button" id="mvNo">Batal</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/config.js"></script>
 <script src="js/common.js"></script>
+<script src="js/bookings.js"></script>
 <script src="js/admin.js"></script>
 </body>
 </html>

@@ -41,3 +41,15 @@ Angka batas bisa diubah di fungsi `create_booking` pada `supabase/schema.sql`.
 - Gunakan hanya publishable key di frontend. Jangan pernah memasukkan `service_role`/secret key.
 - Pembatasan spam memakai batas per nomor/IP dan honeypot, belum CAPTCHA. Jika masih ada spam, tambahkan Cloudflare Turnstile sebelum menerima pembayaran.
 - Field URL gambar manual dan embed post Instagram dihapus dari dashboard (embed tidak punya tempat di halaman home); link profil Instagram tetap ada di footer.
+
+## Revisi terbaru (dashboard booking, WhatsApp, omset, preloader)
+- **Papan jadwal** (tab Booking): baris = layanan, kolom = jam 09.00–00.00. **Tekan & tahan nama** di kartu, **drag ke jam yang kosong** (sel hijau = boleh, merah = penuh/lewat). Muncul konfirmasi, lalu jadwal tersimpan & customer dikirimi WA. Jalan di mouse dan layar sentuh.
+- **Klik kartu** → pop up data booking + ubah **tanggal & jam** (ada indikator kosong/penuh) + tombol Confirm / Reschedule / Selesai / Cancel.
+- **Pesan WhatsApp otomatis** untuk keempat tombol (Confirm, Reschedule, Selesai, Cancel), baik dari pop up, kartu antrian, maupun drag. Pesan dibuka lewat `wa.me` dengan teks sudah terisi — admin tinggal menekan *Kirim* di WhatsApp. Template ada di fungsi `waMessage()` di `js/bookings.js`.
+- **Selesai** → kartu hilang dari papan & antrian (dengan animasi), data tetap di tabel `bookings` Supabase (status `COMPLETED`) dan tetap dihitung di omset. Booking Selesai/Cancel bisa dilihat di bagian *Riwayat*.
+- **Overview**: omset hari ini / bulan ini / total, potensi omset aktif, booking hari ini, total, pending, confirmed, selesai, grafik 7 hari, layanan terlaris.
+- **Galeri**: tambah, **ganti** (posisi & judul tetap), dan hapus foto/video.
+- **Index**: preloader neon dengan progres nyata (font, data Supabase, media hero) + animasi masuk saat scroll.
+- **Dashboard**: transisi halus pada tombol, ripple, status loading, panel, kartu, dan modal.
+- Tidak ada perubahan `schema.sql` — tidak perlu menjalankan ulang SQL.
+- Catatan: WA dikirim dari perangkat admin (wa.me). Untuk kirim 100% otomatis tanpa membuka WhatsApp, perlu layanan WA gateway/API (mis. Fonnte, WhatsApp Cloud API) + Supabase Edge Function.

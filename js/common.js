@@ -12,3 +12,12 @@ const DEFAULT_VENUE={address:'',maps:'https://maps.google.com',instagram:'https:
 const mediaTag=(m,alt='')=>m.type==='video'
   ?`<video src="${esc(m.url)}" muted loop autoplay playsinline preload="metadata" aria-label="${esc(alt)}"></video>`
   :`<img src="${esc(m.url)}" alt="${esc(alt)}" loading="lazy">`;
+
+/* Efek ripple halus pada semua tombol (dashboard & website) */
+document.addEventListener('pointerdown',e=>{
+  const b=e.target.closest?.('.btn,.abtn,td button,.admin-side button,.date-tile,.time-tile');
+  if(!b||b.disabled||matchMedia('(prefers-reduced-motion:reduce)').matches)return;
+  const r=b.getBoundingClientRect(),d=Math.max(r.width,r.height),el=document.createElement('span');
+  el.className='ripple';el.style.cssText=`width:${d}px;height:${d}px;left:${e.clientX-r.left-d/2}px;top:${e.clientY-r.top-d/2}px`;
+  b.appendChild(el);setTimeout(()=>el.remove(),700);
+},{passive:true});
