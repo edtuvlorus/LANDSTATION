@@ -48,3 +48,37 @@ with check (
 
 -- Keep admin mutations locked until Supabase Auth + an explicit admin authorization
 -- policy has been configured. Do not add a public SELECT policy to bookings.
+
+-- Home hero media (photo/video) stored in Supabase Storage + site_settings.
+-- NOTE: the current static dashboard has no Supabase Auth login. These policies
+-- allow anonymous users to replace homepage_media and upload to site-media.
+-- For production, add Supabase Auth/admin-only policies before exposing the site.
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('site-media', 'site-media', true, 52428800, array['image/jpeg','image/png','image/webp','image/gif','video/mp4','video/webm','video/quicktime'])
+on conflict (id) do update set public = true, file_size_limit = 52428800,
+  allowed_mime_types = array['image/jpeg','image/png','image/webp','image/gif','video/mp4','video/webm','video/quicktime'];
+
+drop policy if exists "Public can read homepage media setting" on public.site_settings;
+create policy "Public can read homepage media setting"
+on public.site_settings for select to anon, authenticated
+using (key = 'homepage_media');
+
+drop policy if exists "Public can create homepage media setting" on public.site_settings;
+create policy "Public can create homepage media setting"
+on public.site_settings for insert to anon, authenticated
+with check (key = 'homepage_media');
+
+drop policy if exists "Public can update homepage media setting" on public.site_settings;
+create policy "Public can update homepage media setting"
+on public.site_settings for update to anon, authenticated
+using (key = 'homepage_media') with check (key = 'homepage_media');
+
+drop policy if exists "Public can view site media files" on storage.objects;
+create policy "Public can view site media files"
+on storage.objects for select to anon, authenticated
+using (bucket_id = 'site-media');
+
+drop policy if exists "Public can upload site media files" on storage.objects;
+create policy "Public can upload site media files"
+on storage.objects for insert to anon, authenticated
+with check (bucket_id = 'site-media');

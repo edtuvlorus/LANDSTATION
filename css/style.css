@@ -50,3 +50,5 @@ input,select,textarea,.service-picker-trigger,.service-option{font-family:'Space
 @media(prefers-reduced-motion:reduce){*,*:before,*:after{animation-duration:.01ms!important;animation-iteration-count:1!important;scroll-behavior:auto!important;transition-duration:.01ms!important}}
 
 body:after{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;opacity:.38;background:radial-gradient(ellipse at 76% 30%,transparent 0 18%,#7e85ff12 18.15%,transparent 18.35% 26%,#70cfff0a 26.15%,transparent 26.35%),radial-gradient(ellipse at 17% 76%,transparent 0 11%,#ff8a7010 11.15%,transparent 11.4% 17%,#8c84ff0c 17.15%,transparent 17.4%);mask-image:linear-gradient(to bottom,#000,transparent 95%)}
+/* Hero media supports both photo and video uploads. */
+.hero-visual>#heroPhoto{display:block;width:100%;aspect-ratio:1.15;object-fit:cover;border-radius:20px;border:1px solid #a3a0ff42;box-shadow:0 0 0 1px #ffffff08,0 0 35px #6e70ff20,0 25px 65px #0008;mask-image:linear-gradient(black 70%,transparent 100%);animation:float 7s ease-in-out infinite}

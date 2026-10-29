@@ -59,3 +59,17 @@ Ganti `USERNAME` dengan username GitHub kamu.
 - Public booking inserts are connected, but price/slot/promo validation is still frontend-driven. Before accepting real payments or guaranteeing reservations, move price calculation and slot locking to a secure server/database RPC and add abuse protection.
 - Admin login and admin-only RLS policies are not implemented in this ZIP. Do not expose booking SELECT/update permissions publicly. Add Supabase Auth and a verified admin authorization strategy before connecting admin reads/writes.
 - The Supabase publishable key is designed for frontend use. Never use a `service_role` key or secret key in browser code.
+
+## Upload foto/video Home Hero ke Supabase
+
+Dashboard **Dashboard & tampilan → Midnight Mode · Home Hero** mendukung upload foto atau video. File media diunggah ke bucket `site-media` pada Supabase Storage; URL dan tipe media disimpan pada `public.site_settings` dengan key `homepage_media`. Halaman home membaca setting tersebut sehingga media yang sama tampil untuk pengunjung di perangkat lain.
+
+### Setup tambahan (wajib satu kali)
+1. Buka **Supabase Dashboard → SQL Editor**.
+2. Jalankan ulang file `supabase/schema.sql` versi paket ini (aman untuk tabel yang sudah ada; policy media dibuat ulang).
+3. Deploy ulang seluruh file ke hosting.
+4. Buka dashboard admin, pilih foto/video hero, lalu klik **SIMPAN TAMPILAN**.
+
+Batas upload dashboard: foto 12 MB, video 50 MB. Format video yang disarankan MP4 (H.264) atau WebM. Video tampil muted, autoplay, loop, dan playsinline.
+
+**Peringatan keamanan:** dashboard statis ini belum memakai login admin Supabase. Policy upload dan update hero pada SQL di atas mengizinkan akses anonim, sehingga siapa pun yang mengetahui URL aplikasi dapat mengganti media hero atau mengunggah file ke bucket. Sebelum dipakai publik, pasang Supabase Auth dan ubah policy agar hanya akun admin terotorisasi yang bisa upload/update. Jangan pernah memasukkan service-role key ke frontend.
