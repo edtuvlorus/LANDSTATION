@@ -1,31 +1,247 @@
-const tabs=$$('.admin-side [data-tab]');tabs.forEach(b=>b.onclick=()=>{tabs.forEach(x=>x.classList.remove('active'));b.classList.add('active');$$('.admin-panel').forEach(p=>p.classList.remove('active'));$('#'+b.dataset.tab).classList.add('active');refreshAdmin()});function refreshAdmin(){services=get('services',defaults);promos=get('promos',[]);bookings=get('bookings',[]);settings=get('settings',settings);$('#totalBookings').textContent=bookings.length;$('#pendingBookings').textContent=bookings.filter(b=>b.status==='PENDING').length;$('#activePromos').textContent=promos.filter(p=>p.active&&p.slots>0).length;renderServiceAdmin();renderBookings();renderPromos();populateServiceSelect();fillSettings()}function populateServiceSelect(){const el=$('#serviceId');if(!el)return;const old=el.value;el.innerHTML='<option value="new">+ Layanan baru</option>'+services.map(s=>`<option value="${esc(s.id)}">${esc(s.name)}</option>`).join('');if(services.some(s=>s.id===old))el.value=old}function renderServiceAdmin(){const box=$('#serviceList');if(!box)return;box.innerHTML=`<table><thead><tr><th>Layanan</th><th>Harga</th><th>Slot</th><th>Status</th></tr></thead><tbody>${services.map(s=>`<tr><td>${esc(s.name)}</td><td>${money(s.price)}</td><td>${s.slot}</td><td>${s.active?'Aktif':'Off'}</td></tr>`).join('')}</tbody></table>`}function renderBookings(){const box=$('#bookingList');if(!box)return;box.innerHTML=bookings.length?`<table><thead><tr><th>Booking</th><th>Jadwal</th><th>Total</th><th>Status</th><th>Aksi</th></tr></thead><tbody>${bookings.map((b,i)=>`<tr><td><b>${esc(b.id)}</b><br>${esc(b.name)}<br><small>${esc(b.phone)}</small></td><td>${esc(b.service)}<br>${esc(b.date)} · ${esc(b.time)}</td><td>${money(b.price)}</td><td class="badge">${esc(b.status)}</td><td><button data-act="CONFIRMED" data-i="${i}">Confirm</button><button data-act="RESCHEDULE" data-i="${i}">Reschedule</button><button data-act="CANCELLED" data-i="${i}">Cancel</button><button data-act="COMPLETED" data-i="${i}">Selesai</button></td></tr>`).join('')}</tbody></table>`:'<p class="muted">Belum ada booking demo. Buat booking dari halaman home.</p>';box.querySelectorAll('[data-act]').forEach(btn=>btn.onclick=()=>{let b=bookings[+btn.dataset.i],act=btn.dataset.act;if(act==='RESCHEDULE'){let date=prompt('Tanggal baru (YYYY-MM-DD)',b.date);if(!date)return;let time=prompt('Jam baru (HH.MM)',b.time);if(!time)return;b.date=date;b.time=time;b.status='PENDING'}else b.status=act;set('bookings',bookings);renderBookings();refreshAdmin()})}function renderPromos(){const box=$('#promoList');if(!box)return;box.innerHTML=promos.length?`<table><thead><tr><th>Kode</th><th>Diskon</th><th>Slot</th><th>Status</th><th>Aksi</th></tr></thead><tbody>${promos.map((p,i)=>`<tr><td>${esc(p.code)}</td><td>${p.type==='percent'?p.value+'%':money(p.value)}</td><td>${p.slots}</td><td>${p.active?'ON':'OFF'}</td><td><button data-toggle="${i}">${p.active?'OFF':'ON'}</button><button data-remove="${i}">Hapus</button></td></tr>`).join('')}</tbody></table>`:'<p class="muted">Belum ada kode promo.</p>';box.querySelectorAll('[data-toggle]').forEach(b=>b.onclick=()=>{promos[+b.dataset.toggle].active=!promos[+b.dataset.toggle].active;set('promos',promos);refreshAdmin()});box.querySelectorAll('[data-remove]').forEach(b=>b.onclick=()=>{promos.splice(+b.dataset.remove,1);set('promos',promos);refreshAdmin()})}function fillSettings(){if($('#venueAddress'))$('#venueAddress').value=settings.address||'';if($('#venueMaps'))$('#venueMaps').value=settings.maps||'';if($('#venueInstagram'))$('#venueInstagram').value=settings.instagram||'';if($('#heroUrl'))$('#heroUrl').value=settings.hero||''}$('#serviceId')?.addEventListener('change',()=>{const s=services.find(x=>x.id===$('#serviceId').value);if(!s){$('#serviceForm').reset();$('#serviceActive').value='true';return}$('#serviceName').value=s.name;$('#servicePrice').value=s.price;$('#serviceSlot').value=s.slot;$('#serviceDesc').value=s.desc;$('#serviceImg').value=s.img;$('#serviceActive').value=String(s.active)});let uploadedServiceImage='';$('#serviceFile')?.addEventListener('change',e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>uploadedServiceImage=r.result;r.readAsDataURL(f)});$('#serviceForm')?.addEventListener('submit',e=>{e.preventDefault();let id=$('#serviceId').value;let s={id:id==='new'?'service-'+Date.now():id,name:$('#serviceName').value,price:+$('#servicePrice').value,slot:+$('#serviceSlot').value,desc:$('#serviceDesc').value,img:uploadedServiceImage||$('#serviceImg').value||'assets/arcade.svg',active:$('#serviceActive').value==='true'};let i=services.findIndex(x=>x.id===id);if(i<0)services.push(s);else services[i]=s;set('services',services);uploadedServiceImage='';refreshAdmin();alert('Layanan disimpan pada browser ini.')});$('#deleteService')?.addEventListener('click',()=>{let id=$('#serviceId').value;if(id==='new')return;services=services.filter(s=>s.id!==id);set('services',services);refreshAdmin()});$('#promoForm')?.addEventListener('submit',e=>{e.preventDefault();let code=$('#promoCode').value.trim().toUpperCase();promos=promos.filter(p=>p.code!==code);promos.push({code,slots:+$('#promoSlots').value,type:$('#promoType').value,value:+$('#promoValue').value,active:$('#promoActive').value==='true'});set('promos',promos);e.target.reset();refreshAdmin();alert('Kode promo disimpan pada browser ini.')});;refreshAdmin();
+/* LAND STATION — dashboard admin. Semua upload & pengaturan disimpan ke Supabase (Storage + Database). */
+const BUCKET=window.LS.bucket;
+const state={services:[],promos:[],bookings:[],media:[],site:{}};
 
-// Extended visual customizer: multi-photo gallery, event banner and Instagram post embeds.
-const DEFAULT_GALLERY=[{src:'assets/arcade.svg',title:'Arcade & Retro Gaming'},{src:'assets/ps5.svg',title:'Console Gaming'},{src:'assets/billiard.svg',title:'Billiard Lounge'},{src:'assets/ps4.svg',title:'Gaming Station'}];
-settings={...{gallery:DEFAULT_GALLERY,event:{enabled:false,title:'NEXT LEVEL COMPETITION',eyebrow:'LAND STATION EVENT',description:'Siap adu skill?',cta:'#booking-info',image:'assets/arcade.svg'},instagram:'https://www.instagram.com/landstation.imy/',instagramPosts:[]},...settings};
-settings.gallery=Array.isArray(settings.gallery)&&settings.gallery.length?settings.gallery:DEFAULT_GALLERY;
-settings.event={enabled:false,title:'NEXT LEVEL COMPETITION',eyebrow:'LAND STATION EVENT',description:'Siap adu skill?',cta:'#booking-info',image:'assets/arcade.svg',...(settings.event||{})};
-function fileToImageData(file,maxWidth=1500){return new Promise((resolve,reject)=>{const reader=new FileReader();reader.onerror=reject;reader.onload=()=>{const img=new Image();img.onerror=reject;img.onload=()=>{const scale=Math.min(1,maxWidth/img.width),canvas=document.createElement('canvas');canvas.width=Math.round(img.width*scale);canvas.height=Math.round(img.height*scale);const ctx=canvas.getContext('2d');ctx.fillStyle='#0b1018';ctx.fillRect(0,0,canvas.width,canvas.height);ctx.drawImage(img,0,0,canvas.width,canvas.height);resolve(canvas.toDataURL('image/jpeg',.82))};img.src=reader.result};reader.readAsDataURL(file)})}
-function renderGalleryAdmin(){const box=$('#galleryAdminPreview');if(!box)return;box.innerHTML='<div class="gallery-admin-grid">'+settings.gallery.map((g,i)=>`<div class="gallery-admin-item"><img src="${esc(g.src)}" alt=""><input data-gallery-title="${i}" value="${esc(g.title||'Foto venue')}" aria-label="Nama foto ${i+1}" style="width:100%;margin:5px 0;padding:7px;background:#0b111b;color:white;border:1px solid #ffffff20;border-radius:7px"><button type="button" class="btn ghost" data-gallery-delete="${i}">HAPUS FOTO</button></div>`).join('')+'</div>';
-box.querySelectorAll('[data-gallery-delete]').forEach(b=>b.onclick=()=>{settings.gallery.splice(+b.dataset.galleryDelete,1);persistSettings();renderGalleryAdmin()});box.querySelectorAll('[data-gallery-title]').forEach(inp=>inp.onchange=()=>{settings.gallery[+inp.dataset.galleryTitle].title=inp.value;persistSettings()})}
-function persistSettings(){set('settings',settings)}
-let eventUpload='';$('#eventFile')?.addEventListener('change',async e=>{const f=e.target.files?.[0];if(!f)return;try{eventUpload=await fileToImageData(f,1800);$('#eventUrl').value='';}catch{alert('Foto banner tidak bisa dibaca. Coba file JPG/PNG lain.')}});
-$('#galleryFiles')?.addEventListener('change',async e=>{const files=[...(e.target.files||[])];if(!files.length)return;try{for(const file of files){const src=await fileToImageData(file,1400);settings.gallery.push({src,title:file.name.replace(/\.[^.]+$/,'').replace(/[-_]/g,' ')});}persistSettings();renderGalleryAdmin();e.target.value='';alert('Foto galeri ditambahkan. Pastikan ukuran penyimpanan browser tidak penuh.')}catch{alert('Foto gagal diproses. Coba gambar lebih kecil.')}});
-$('#galleryUrls')?.addEventListener('change',()=>{const urls=$('#galleryUrls').value.split(/\n/).map(x=>x.trim()).filter(x=>/^https?:\/\//i.test(x));urls.forEach((src,i)=>settings.gallery.push({src,title:`Land Station ${settings.gallery.length+1}`}));if(urls.length){persistSettings();renderGalleryAdmin();$('#galleryUrls').value=''}});
-$('#clearGallery')?.addEventListener('click',()=>{if(confirm('Hapus semua foto galeri kustom? Foto bawaan akan digunakan.')){settings.gallery=[];persistSettings();renderGalleryAdmin()}});
-$('#removeEvent')?.addEventListener('click',()=>{settings.event={...(settings.event||{}),enabled:false};$('#eventEnabled').checked=false;persistSettings();alert('Banner event dinonaktifkan dan tidak tampil di home.')});
-function fillAppearance(){settings.event={enabled:false,title:'NEXT LEVEL COMPETITION',eyebrow:'LAND STATION EVENT',description:'Siap adu skill?',cta:'#booking-info',image:'assets/arcade.svg',...(settings.event||{})};if($('#eventEnabled'))$('#eventEnabled').checked=!!settings.event.enabled;if($('#eventTitleInput'))$('#eventTitleInput').value=settings.event.title||'';if($('#eventEyebrowInput'))$('#eventEyebrowInput').value=settings.event.eyebrow||'';if($('#eventDescriptionInput'))$('#eventDescriptionInput').value=settings.event.description||'';if($('#eventCtaInput'))$('#eventCtaInput').value=settings.event.cta||'#booking-info';if($('#eventUrl'))$('#eventUrl').value=settings.event.image?.startsWith('http')?settings.event.image:'';renderGalleryAdmin()}
-let heroUploadFile=null;
-$('#heroFile')?.addEventListener('change',e=>{heroUploadFile=e.target.files?.[0]||null;renderHeroMediaPreview(heroUploadFile?URL.createObjectURL(heroUploadFile):($('#heroUrl').value.trim()||settings.hero||''),heroUploadFile?heroUploadFile.type:settings.heroType);});
-$('#heroUrl')?.addEventListener('input',()=>{if(!heroUploadFile)renderHeroMediaPreview($('#heroUrl').value.trim(),guessMediaType($('#heroUrl').value.trim()));});
-function guessMediaType(src){return /\.(mp4|webm|mov)(?:[?#].*)?$/i.test(src||'')?'video':'image'}
-function renderHeroMediaPreview(src,type){const box=$('#heroMediaPreview');if(!box)return;if(!src){box.innerHTML='<p class="fineprint">Belum ada media hero dipilih.</p>';return;}const t=type||guessMediaType(src);box.innerHTML=t==='video'?`<video src="${esc(src)}" muted autoplay loop playsinline controls style="width:min(100%,560px);max-height:280px;object-fit:cover;border-radius:12px;border:1px solid #ffffff25"></video>`:`<img src="${esc(src)}" alt="Preview hero" style="width:min(100%,560px);max-height:280px;object-fit:cover;border-radius:12px;border:1px solid #ffffff25">`;}
-async function saveHeroMedia(file,url){const client=window.landStationSupabase;if(!client)throw new Error('Supabase client belum tersedia.');let mediaUrl=url||'';let type=file?(file.type.startsWith('video/')?'video':'image'):guessMediaType(url);if(file){const max=file.type.startsWith('video/')?50*1024*1024:12*1024*1024;if(file.size>max)throw new Error(file.type.startsWith('video/')?'Ukuran video maksimal 50 MB.':'Ukuran foto maksimal 12 MB.');if(!file.type.startsWith('image/')&&!file.type.startsWith('video/'))throw new Error('Format file tidak didukung.');const ext=(file.name.split('.').pop()|| (type==='video'?'mp4':'jpg')).toLowerCase().replace(/[^a-z0-9]/g,'');const path=`hero/${Date.now()}-${Math.random().toString(36).slice(2,8)}.${ext}`;const {error:uploadError}=await client.storage.from('site-media').upload(path,file,{contentType:file.type,cacheControl:'3600',upsert:false});if(uploadError)throw uploadError;const {data}=client.storage.from('site-media').getPublicUrl(path);mediaUrl=data.publicUrl;}
- if(!mediaUrl)throw new Error('Pilih file foto/video atau masukkan URL media.');const payload={url:mediaUrl,type,updated_at:new Date().toISOString()};const {error}=await client.from('site_settings').upsert({key:'homepage_media',value:payload,updated_at:new Date().toISOString()},{onConflict:'key'});if(error)throw error;settings.hero=mediaUrl;settings.heroType=type;return payload;}
-const appearanceForm=$('#appearanceForm');if(appearanceForm){appearanceForm.addEventListener('submit',async e=>{e.preventDefault();const submit=e.submitter||appearanceForm.querySelector('button[type="submit"],button:not([type])');if(submit){submit.disabled=true;submit.textContent='MENYIMPAN...';}try{const url=$('#heroUrl').value.trim();if(heroUploadFile||url){const saved=await saveHeroMedia(heroUploadFile,url);settings.hero=saved.url;settings.heroType=saved.type;heroUploadFile=null;$('#heroFile').value='';$('#heroUrl').value=saved.url;renderHeroMediaPreview(saved.url,saved.type);}
- settings.event={enabled:$('#eventEnabled').checked,title:$('#eventTitleInput').value.trim()||'LAND STATION EVENT',eyebrow:$('#eventEyebrowInput').value.trim()||'LAND STATION EVENT',description:$('#eventDescriptionInput').value.trim(),cta:$('#eventCtaInput').value.trim()||'#booking-info',image:eventUpload||$('#eventUrl').value.trim()||settings.event.image||'assets/arcade.svg'};persistSettings();eventUpload='';alert('Media hero berhasil disimpan ke Supabase. Galeri dan banner tersimpan sesuai konfigurasi saat ini.');}catch(err){console.error(err);alert('Gagal menyimpan media hero ke Supabase: '+(err.message||'Periksa koneksi, bucket, dan policy SQL.'));}finally{if(submit){submit.disabled=false;submit.textContent='SIMPAN TAMPILAN';}}});}
-$('#settingsForm')?.addEventListener('submit',e=>{e.preventDefault();settings={...settings,address:$('#venueAddress').value,maps:$('#venueMaps').value||'https://maps.google.com',instagram:$('#venueInstagram').value||'https://www.instagram.com/landstation.imy/',instagramPosts:($('#venueInstagramPosts')?.value||'').split(/\n/).map(x=>x.trim()).filter(x=>/^https?:\/\//i.test(x))};persistSettings();alert('Maps dan link Instagram tersimpan. Link post/reel publik akan dicoba di-embed di home.')});
-function fillSettingsExtended(){if($('#venueInstagramPosts'))$('#venueInstagramPosts').value=(settings.instagramPosts||[]).join('\n');if($('#venueInstagram'))$('#venueInstagram').value=settings.instagram||'https://www.instagram.com/landstation.imy/'}
-fillAppearance();fillSettingsExtended();
+/* ---------- Util ---------- */
+let toastTimer;
+function toast(msg,error=false){const t=$('#toast');t.textContent=msg;t.className='toast show'+(error?' error':'');clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('show'),error?6000:2800)}
+const fail=(err,ctx)=>{console.error(ctx,err);toast((ctx?ctx+': ':'')+(err?.message||err),true)};
+const fmtSize=b=>b>1048576?(b/1048576).toFixed(1)+' MB':Math.max(1,Math.round(b/1024))+' KB';
+const slug=s=>String(s).toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,30)||'layanan';
 
-(async()=>{try{const client=window.landStationSupabase;if(!client)return;const {data,error}=await client.from('site_settings').select('value').eq('key','homepage_media').maybeSingle();if(error)throw error;if(data?.value?.url){settings.hero=data.value.url;settings.heroType=data.value.type||'image';$('#heroUrl').value=settings.hero;renderHeroMediaPreview(settings.hero,settings.heroType);}}catch(err){console.warn('Hero media settings not loaded:',err.message||err);}})();
+async function saveSetting(key,value){
+  const {error}=await sb.from('site_settings').upsert({key,value},{onConflict:'key'});
+  if(error)throw error;state.site[key]=value;
+}
+
+/* ---------- Upload ke Supabase Storage + catat di tabel media_files ---------- */
+function shrinkImage(file,maxW=2400){
+  return new Promise(resolve=>{
+    if(!/^image\/(jpeg|png|webp)$/.test(file.type))return resolve({blob:file,type:file.type});
+    const url=URL.createObjectURL(file),img=new Image();
+    img.onerror=()=>{URL.revokeObjectURL(url);resolve({blob:file,type:file.type})};
+    img.onload=()=>{
+      URL.revokeObjectURL(url);
+      if(img.width<=maxW&&file.size<=2.5*1048576)return resolve({blob:file,type:file.type});
+      const k=Math.min(1,maxW/img.width),c=document.createElement('canvas');c.width=Math.round(img.width*k);c.height=Math.round(img.height*k);
+      const x=c.getContext('2d');x.fillStyle='#0b1018';x.fillRect(0,0,c.width,c.height);x.drawImage(img,0,0,c.width,c.height);
+      c.toBlob(b=>b&&b.size<file.size?resolve({blob:b,type:'image/jpeg'}):resolve({blob:file,type:file.type}),'image/jpeg',.86);
+    };
+    img.src=url;
+  });
+}
+async function uploadMedia(file,folder){
+  const isVideo=file.type.startsWith('video/'),isImage=file.type.startsWith('image/');
+  if(!isVideo&&!isImage)throw new Error('Format file tidak didukung (hanya foto/video).');
+  const maxMB=isVideo?50:12;if(file.size>maxMB*1048576)throw new Error(`${file.name}: maksimal ${maxMB} MB untuk ${isVideo?'video':'foto'}.`);
+  const {blob,type}=isImage?await shrinkImage(file):{blob:file,type:file.type};
+  const ext=(type==='image/jpeg'?'jpg':type==='video/quicktime'?'mov':type.split('/')[1]||'bin').replace('svg+xml','svg');
+  const path=`${folder}/${Date.now()}-${Math.random().toString(36).slice(2,8)}.${ext}`;
+  const {error}=await sb.storage.from(BUCKET).upload(path,blob,{contentType:type,cacheControl:'31536000',upsert:false});
+  if(error)throw error;
+  const url=sb.storage.from(BUCKET).getPublicUrl(path).data.publicUrl,kind=isVideo?'video':'image';
+  const {error:dbErr}=await sb.from('media_files').insert({path,url,kind,folder,mime:type,size_bytes:blob.size});
+  if(dbErr){await sb.storage.from(BUCKET).remove([path]);throw dbErr}
+  return {path,url,type:kind};
+}
+async function deleteMedia(path){
+  if(!path)return;
+  await sb.storage.from(BUCKET).remove([path]);
+  await sb.from('media_files').delete().eq('path',path);
+}
+async function withBusy(label,fn){toast(label+'…');try{await fn()}catch(e){fail(e,'Gagal')}}
+
+/* ---------- Auth ---------- */
+const show=(id,v)=>{$(id).hidden=!v};
+async function enter(){
+  const {data,error}=await sb.from('admin_users').select('user_id').maybeSingle();
+  if(error||!data){$('#loginMsg').textContent='Akun ini belum terdaftar sebagai admin (lihat README langkah 4).';await sb.auth.signOut();show('#dashView',false);show('#loginView',true);return}
+  show('#loginView',false);show('#dashView',true);await loadAll();
+}
+$('#loginForm').addEventListener('submit',async e=>{
+  e.preventDefault();const btn=$('#loginBtn');btn.disabled=true;$('#loginMsg').textContent='';
+  const {error}=await sb.auth.signInWithPassword({email:$('#loginEmail').value.trim(),password:$('#loginPass').value});
+  btn.disabled=false;if(error){$('#loginMsg').textContent='Login gagal: '+error.message;return}
+  $('#loginPass').value='';await enter();
+});
+$('#logoutBtn').addEventListener('click',async()=>{await sb.auth.signOut();show('#dashView',false);show('#loginView',true)});
+(async()=>{const {data:{session}}=await sb.auth.getSession();if(session)await enter();else show('#loginView',true)})();
+
+/* ---------- Tabs ---------- */
+$$('.admin-side [data-tab]').forEach(b=>b.onclick=()=>{
+  $$('.admin-side [data-tab]').forEach(x=>x.classList.toggle('active',x===b));
+  $$('.admin-panel').forEach(p=>p.classList.toggle('active',p.id===b.dataset.tab));
+});
+
+/* ---------- Load semua data ---------- */
+async function loadAll(){
+  const [sv,pr,bk,md,st]=await Promise.all([
+    sb.from('services').select('*').order('sort_order').order('name'),
+    sb.from('promos').select('*').order('created_at',{ascending:false}),
+    sb.from('bookings').select('*').order('created_at',{ascending:false}).limit(300),
+    sb.from('media_files').select('*').order('created_at',{ascending:false}),
+    sb.from('site_settings').select('key,value')]);
+  for(const r of [sv,pr,bk,md,st])if(r.error){fail(r.error,'Memuat data');}
+  state.services=sv.data||[];state.promos=pr.data||[];state.bookings=bk.data||[];state.media=md.data||[];
+  state.site={};(st.data||[]).forEach(r=>state.site[r.key]=r.value);
+  renderAll();
+}
+function renderAll(){renderOverview();renderHero();renderGallery();renderEventForm();renderPrices();renderServiceSelect();renderBookings();renderPromos();renderVenue();renderLibrary()}
+function renderOverview(){
+  $('#totalBookings').textContent=state.bookings.length;
+  $('#pendingBookings').textContent=state.bookings.filter(b=>b.status==='PENDING').length;
+  $('#activePromos').textContent=state.promos.filter(p=>p.active&&p.slots>0).length;
+  $('#totalMedia').textContent=state.media.length;
+}
+
+/* ---------- Hero ---------- */
+const previewHTML=(m,alt)=>m&&m.url?(m.type==='video'?`<video src="${esc(m.url)}" muted loop autoplay playsinline controls></video>`:`<img src="${esc(m.url)}" alt="${esc(alt)}">`):'<p class="fineprint">Belum ada media.</p>';
+function renderHero(){$('#heroPreview').innerHTML=previewHTML(state.site.homepage_media||DEFAULT_HERO,'Preview hero')}
+$('#heroFile').addEventListener('change',async e=>{
+  const f=e.target.files[0];if(!f)return;
+  await withBusy('Mengunggah hero',async()=>{
+    const old=state.site.homepage_media?.path,up=await uploadMedia(f,'hero');
+    await saveSetting('homepage_media',{url:up.url,type:up.type,path:up.path});
+    await deleteMedia(old);await refreshMedia();renderHero();toast('Hero tersimpan di Supabase ✓');
+  });e.target.value='';
+});
+$('#heroReset').addEventListener('click',async()=>{
+  if(!confirm('Kembali ke hero bawaan? File hero yang di-upload akan dihapus dari Supabase.'))return;
+  await withBusy('Mengatur ulang hero',async()=>{
+    const old=state.site.homepage_media?.path;
+    const {error}=await sb.from('site_settings').delete().eq('key','homepage_media');if(error)throw error;
+    delete state.site.homepage_media;await deleteMedia(old);await refreshMedia();renderHero();toast('Hero dikembalikan ke bawaan ✓');
+  });
+});
+
+/* ---------- Galeri ---------- */
+const galleryItems=()=>state.site.gallery?.items||[];
+function renderGallery(){
+  const items=galleryItems(),box=$('#galleryAdmin');
+  box.innerHTML=items.length?items.map((g,i)=>`<div class="thumb">${previewHTML(g,g.title)}<input data-g-title="${i}" value="${esc(g.title||'')}" aria-label="Judul ${i+1}" placeholder="Judul"><button type="button" class="btn danger small" data-g-del="${i}">HAPUS</button></div>`).join(''):'<p class="fineprint">Belum ada file galeri — website memakai gambar bawaan. Upload file untuk menggantinya.</p>';
+  $$('[data-g-title]',box).forEach(inp=>inp.onchange=()=>withBusy('Menyimpan judul',async()=>{const items=[...galleryItems()];items[+inp.dataset.gTitle]={...items[+inp.dataset.gTitle],title:inp.value.trim()};await saveSetting('gallery',{items});toast('Judul tersimpan ✓')}));
+  $$('[data-g-del]',box).forEach(b=>b.onclick=()=>{if(!confirm('Hapus file ini dari galeri dan dari Supabase?'))return;
+    withBusy('Menghapus',async()=>{const items=[...galleryItems()],[gone]=items.splice(+b.dataset.gDel,1);await saveSetting('gallery',{items});await deleteMedia(gone?.path);await refreshMedia();renderGallery();toast('File galeri dihapus ✓')})});
+}
+$('#galleryFiles').addEventListener('change',async e=>{
+  const files=[...e.target.files];if(!files.length)return;
+  await withBusy(`Mengunggah ${files.length} file`,async()=>{
+    const items=[...galleryItems()];let n=0;
+    for(const f of files){try{const up=await uploadMedia(f,'gallery');items.push({url:up.url,type:up.type,path:up.path,title:f.name.replace(/\.[^.]+$/,'').replace(/[-_]+/g,' ').slice(0,40)});n++;await saveSetting('gallery',{items})}catch(err){fail(err,f.name)}}
+    await refreshMedia();renderGallery();if(n)toast(`${n} file galeri tersimpan di Supabase ✓`);
+  });e.target.value='';
+});
+
+/* ---------- Event ---------- */
+const ev=()=>({...DEFAULT_EVENT,...(state.site.event||{})});
+function renderEventForm(){
+  const e=ev();$('#eventEnabled').checked=!!e.enabled;$('#eventTitleInput').value=state.site.event?e.title:'';$('#eventEyebrowInput').value=state.site.event?e.eyebrow:'';
+  $('#eventDescriptionInput').value=state.site.event?e.description:'';$('#eventCtaInput').value=e.cta||'';
+  $('#eventPreview').innerHTML=e.image?previewHTML({url:e.image,type:'image'},'Banner'):'';
+}
+const eventFromForm=()=>({...ev(),enabled:$('#eventEnabled').checked,title:$('#eventTitleInput').value.trim()||DEFAULT_EVENT.title,eyebrow:$('#eventEyebrowInput').value.trim()||DEFAULT_EVENT.eyebrow,description:$('#eventDescriptionInput').value.trim(),cta:$('#eventCtaInput').value.trim()||'#booking-info'});
+$('#eventForm').addEventListener('submit',e=>{e.preventDefault();withBusy('Menyimpan banner',async()=>{await saveSetting('event',eventFromForm());renderEventForm();toast('Banner event tersimpan ✓')})});
+$('#eventFile').addEventListener('change',async e=>{
+  const f=e.target.files[0];if(!f)return;
+  await withBusy('Mengunggah banner',async()=>{
+    if(!f.type.startsWith('image/'))throw new Error('Banner harus berupa foto.');
+    const old=state.site.event?.imagePath,up=await uploadMedia(f,'event');
+    await saveSetting('event',{...eventFromForm(),image:up.url,imagePath:up.path});
+    await deleteMedia(old);await refreshMedia();renderEventForm();toast('Foto banner tersimpan di Supabase ✓');
+  });e.target.value='';
+});
+
+/* ---------- Layanan & harga per jam ---------- */
+function renderPrices(){
+  $('#priceTable').innerHTML=state.services.length?`<table><thead><tr><th>Layanan</th><th>Harga / jam (Rp)</th><th>Aktif</th></tr></thead><tbody>${state.services.map(s=>`<tr><td><b>${esc(s.name)}</b></td><td><input type="number" min="0" step="500" value="${s.price}" data-price="${esc(s.id)}" aria-label="Harga ${esc(s.name)}"><span class="saved" data-saved="${esc(s.id)}"></span></td><td><input type="checkbox" ${s.active?'checked':''} data-active="${esc(s.id)}" aria-label="Aktif ${esc(s.name)}"></td></tr>`).join('')}</tbody></table>`:'<p class="muted">Belum ada layanan.</p>';
+  $$('[data-price]').forEach(inp=>inp.onchange=async()=>{
+    const v=Math.max(0,Math.round(+inp.value||0)),id=inp.dataset.price,tag=$(`[data-saved="${CSS.escape(id)}"]`);
+    const {error}=await sb.from('services').update({price:v}).eq('id',id);
+    if(error){fail(error,'Harga gagal disimpan');return}
+    state.services.find(s=>s.id===id).price=v;inp.value=v;tag.textContent='Tersimpan ✓';setTimeout(()=>tag.textContent='',2200);
+  });
+  $$('[data-active]').forEach(cb=>cb.onchange=async()=>{
+    const {error}=await sb.from('services').update({active:cb.checked}).eq('id',cb.dataset.active);
+    if(error){fail(error,'Status gagal disimpan');cb.checked=!cb.checked;return}
+    state.services.find(s=>s.id===cb.dataset.active).active=cb.checked;toast('Status layanan tersimpan ✓');
+  });
+}
+function renderServiceSelect(){
+  const el=$('#serviceId'),old=el.value;el.innerHTML='<option value="new">+ Layanan baru</option>'+state.services.map(s=>`<option value="${esc(s.id)}">${esc(s.name)}</option>`).join('');
+  el.value=state.services.some(s=>s.id===old)?old:'new';fillServiceForm();
+}
+let serviceImg={url:'',path:''};
+function fillServiceForm(){
+  const s=state.services.find(x=>x.id===$('#serviceId').value);
+  $('#serviceName').value=s?.name||'';$('#servicePrice').value=s?.price??'';$('#serviceSlot').value=s?.slot??'';$('#serviceDesc').value=s?.description||'';
+  $('#serviceActive').value=String(s?s.active:true);serviceImg={url:s?.image_url||'',path:''};
+  $('#servicePreview').innerHTML=serviceImg.url?previewHTML({url:serviceImg.url,type:'image'},'Foto layanan'):'';
+}
+$('#serviceId').addEventListener('change',fillServiceForm);
+$('#serviceFile').addEventListener('change',async e=>{
+  const f=e.target.files[0];if(!f)return;
+  await withBusy('Mengunggah foto layanan',async()=>{
+    if(!f.type.startsWith('image/'))throw new Error('Foto layanan harus berupa gambar.');
+    const id=$('#serviceId').value,up=await uploadMedia(f,'services');serviceImg={url:up.url,path:up.path};
+    $('#servicePreview').innerHTML=previewHTML({url:up.url,type:'image'},'Foto layanan');
+    if(id!=='new'){ // layanan sudah ada → simpan otomatis
+      const {error}=await sb.from('services').update({image_url:up.url}).eq('id',id);if(error)throw error;
+      state.services.find(s=>s.id===id).image_url=up.url;toast('Foto layanan tersimpan di Supabase ✓');
+    }else toast('Foto ter-upload. Klik SIMPAN LAYANAN untuk menyimpan layanan baru.');
+    await refreshMedia();
+  });e.target.value='';
+});
+$('#serviceForm').addEventListener('submit',e=>{e.preventDefault();withBusy('Menyimpan layanan',async()=>{
+  const sel=$('#serviceId').value,isNew=sel==='new',name=$('#serviceName').value.trim();
+  const row={name,description:$('#serviceDesc').value.trim(),price:Math.max(0,Math.round(+$('#servicePrice').value||0)),slot:Math.max(0,Math.round(+$('#serviceSlot').value||0)),image_url:serviceImg.url||'assets/arcade.svg',active:$('#serviceActive').value==='true'};
+  if(isNew){row.id=slug(name)+'-'+Math.random().toString(36).slice(2,5);row.sort_order=state.services.length+1;const {error}=await sb.from('services').insert(row);if(error)throw error}
+  else{const {error}=await sb.from('services').update(row).eq('id',sel);if(error)throw error}
+  await loadAll();if(isNew)$('#serviceId').value=row.id,fillServiceForm();toast('Layanan tersimpan di Supabase ✓');
+})});
+$('#deleteService').addEventListener('click',()=>{
+  const id=$('#serviceId').value;if(id==='new')return;if(!confirm('Hapus layanan ini? Riwayat booking tetap tersimpan.'))return;
+  withBusy('Menghapus layanan',async()=>{const {error}=await sb.from('services').delete().eq('id',id);if(error)throw error;await loadAll();toast('Layanan dihapus ✓')});
+});
+
+/* ---------- Booking ---------- */
+const BADGE={PENDING:'Pending',CONFIRMED:'Confirmed',RESCHEDULED:'Reschedule',CANCELLED:'Cancelled',COMPLETED:'Selesai'};
+function renderBookings(){
+  const box=$('#bookingList');
+  box.innerHTML=state.bookings.length?`<table><thead><tr><th>Booking</th><th>Jadwal</th><th>Total</th><th>Status</th><th>Aksi</th></tr></thead><tbody>${state.bookings.map(b=>`<tr><td><b>${esc(b.id.slice(0,8).toUpperCase())}</b><br>${esc(b.customer_name)}<br><small>${esc(b.phone)}</small>${b.notes?`<br><small>${esc(b.notes)}</small>`:''}</td><td>${esc(b.service_name)}<br>${esc(b.booking_date)} · ${esc(b.booking_time)} · ${Math.round(b.duration_minutes/60*10)/10} jam${b.promo_code?`<br><small>Promo ${esc(b.promo_code)}</small>`:''}</td><td>${money(b.total_price)}</td><td class="badge">${BADGE[b.status]||esc(b.status)}</td><td><button data-act="CONFIRMED" data-id="${b.id}">Confirm</button><button data-act="RESCHEDULE" data-id="${b.id}">Reschedule</button><button data-act="CANCELLED" data-id="${b.id}">Cancel</button><button data-act="COMPLETED" data-id="${b.id}">Selesai</button></td></tr>`).join('')}</tbody></table>`:'<p class="muted">Belum ada booking.</p>';
+  $$('[data-act]',box).forEach(btn=>btn.onclick=()=>withBusy('Memperbarui booking',async()=>{
+    const b=state.bookings.find(x=>x.id===btn.dataset.id);let patch;
+    if(btn.dataset.act==='RESCHEDULE'){const d=prompt('Tanggal baru (YYYY-MM-DD)',b.booking_date);if(!d)return;const t=prompt('Jam baru (HH.MM)',b.booking_time);if(!t)return;patch={booking_date:d,booking_time:t,status:'RESCHEDULED'}}
+    else patch={status:btn.dataset.act};
+    const {error}=await sb.from('bookings').update(patch).eq('id',b.id);if(error)throw error;Object.assign(b,patch);renderBookings();renderOverview();toast('Booking diperbarui ✓');
+  }));
+}
+
+/* ---------- Promo ---------- */
+function renderPromos(){
+  const box=$('#promoList');
+  box.innerHTML=state.promos.length?`<table><thead><tr><th>Kode</th><th>Diskon</th><th>Slot</th><th>Status</th><th>Aksi</th></tr></thead><tbody>${state.promos.map(p=>`<tr><td>${esc(p.code)}</td><td>${p.discount_type==='percent'?p.discount_value+'%':money(p.discount_value)}</td><td>${p.slots}</td><td>${p.active?'ON':'OFF'}</td><td><button data-ptoggle="${p.id}">${p.active?'OFF':'ON'}</button><button data-pdel="${p.id}">Hapus</button></td></tr>`).join('')}</tbody></table>`:'<p class="muted">Belum ada kode promo.</p>';
+  $$('[data-ptoggle]',box).forEach(b=>b.onclick=()=>withBusy('Memperbarui promo',async()=>{const p=state.promos.find(x=>x.id===b.dataset.ptoggle),{error}=await sb.from('promos').update({active:!p.active}).eq('id',p.id);if(error)throw error;p.active=!p.active;renderPromos();renderOverview()}));
+  $$('[data-pdel]',box).forEach(b=>b.onclick=()=>{if(!confirm('Hapus kode promo ini?'))return;withBusy('Menghapus promo',async()=>{const {error}=await sb.from('promos').delete().eq('id',b.dataset.pdel);if(error)throw error;await loadAll()})});
+}
+$('#promoForm').addEventListener('submit',e=>{e.preventDefault();withBusy('Menyimpan promo',async()=>{
+  const row={code:$('#promoCode').value.trim().toUpperCase(),slots:Math.max(0,+$('#promoSlots').value||0),discount_type:$('#promoType').value,discount_value:Math.max(0,+$('#promoValue').value||0),active:$('#promoActive').value==='true'};
+  const {error}=await sb.from('promos').upsert(row,{onConflict:'code'});if(error)throw error;e.target.reset();await loadAll();toast('Kode promo tersimpan ✓');
+})});
+
+/* ---------- Venue ---------- */
+function renderVenue(){const v={...DEFAULT_VENUE,...(state.site.venue||{})};$('#venueAddress').value=v.address||'';$('#venueMaps').value=v.maps||'';$('#venueInstagram').value=v.instagram||''}
+$('#venueForm').addEventListener('submit',e=>{e.preventDefault();withBusy('Menyimpan info',async()=>{
+  await saveSetting('venue',{address:$('#venueAddress').value.trim(),maps:$('#venueMaps').value.trim()||DEFAULT_VENUE.maps,instagram:$('#venueInstagram').value.trim()||DEFAULT_VENUE.instagram});toast('Info venue tersimpan ✓');
+})});
+
+/* ---------- Media library ---------- */
+async function refreshMedia(){const {data}=await sb.from('media_files').select('*').order('created_at',{ascending:false});state.media=data||[];renderLibrary();renderOverview()}
+function usedUrls(){
+  const u=new Set();const h=state.site.homepage_media;if(h?.url)u.add(h.url);galleryItems().forEach(g=>u.add(g.url));
+  if(state.site.event?.image)u.add(state.site.event.image);state.services.forEach(s=>u.add(s.image_url));return u;
+}
+function renderLibrary(){
+  const used=usedUrls(),box=$('#libraryGrid');
+  box.innerHTML=state.media.length?state.media.map(m=>`<div class="thumb">${previewHTML({url:m.url,type:m.kind},m.path)}<span>${esc(m.folder)} · ${fmtSize(m.size_bytes)}</span>${used.has(m.url)?'<span class="tag-used">DIPAKAI WEBSITE</span>':`<button class="btn danger small" data-m-del="${esc(m.path)}">HAPUS</button>`}</div>`).join(''):'<p class="muted">Belum ada file yang di-upload.</p>';
+  $$('[data-m-del]',box).forEach(b=>b.onclick=()=>{if(!confirm('Hapus file ini dari Supabase?'))return;withBusy('Menghapus file',async()=>{await deleteMedia(b.dataset.mDel);await refreshMedia();toast('File dihapus ✓')})});
+}

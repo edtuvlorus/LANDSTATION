@@ -1,75 +1,48 @@
-# Land Station — Neon Space UI Revision
+# Land Station — Revisi: Upload ke Supabase + Harga/Jam + CSS tanpa overlay
 
-## Perubahan
-- Wordmark LAND STATION diperbarui memakai gambar logo yang dikirim.
-- Visual diperbarui mengikuti referensi: outline gradasi, glow tipis, latar space dengan bintang/orbit, tombol glass/neon, dan font futuristik Orbitron + Space Grotesk.
-- Responsif untuk desktop dan mobile.
-- Ditambahkan `vercel.json`, `.gitignore`, dan starter schema Supabase.
+## Yang berubah
+- **Semua upload dashboard tersimpan di Supabase**: file → Storage bucket `site-media`, catatan file → tabel `media_files`, pengaturan → tabel `site_settings`.
+  Mencakup hero (foto/video), galeri (foto/video), banner event, dan foto layanan. File otomatis tersimpan begitu dipilih (tidak perlu menekan simpan).
+- **Harga per jam bisa diatur di dashboard** (tab *Layanan & harga/jam*). Ubah angka di tabel → otomatis tersimpan ke tabel `services`. Booking menghitung total = harga/jam × durasi (pilihan durasi ditambahkan di form booking).
+- **Layanan, promo, dan booking** sekarang dibaca/ditulis ke Supabase (bukan lagi `localStorage`), jadi booking dari perangkat lain muncul di dashboard.
+- **Login admin (Supabase Auth)**. Sebelumnya policy mengizinkan siapa pun (anonim) mengganti media dan mengupload ke bucket. Sekarang hanya akun yang terdaftar di `admin_users` yang bisa menulis.
+- **Booking lewat RPC `create_booking`**: harga dihitung di server dari harga/jam di database, promo divalidasi & slot promo dikurangi di server.
+- **CSS ditulis ulang** (`css/style.css`): tidak ada lagi `body:before/:after`, lingkaran `.section:after`, frame `.hero-visual:before/:after`, scrim `.gallery-card:after`/`.event-banner:after`, atau efek `.btn:before/:after` yang saling menumpuk. Teks di atas foto memakai panel/badge sendiri; banner event dibuat panel + foto berdampingan.
 
-## Preview
-Buka `index.html` langsung, atau gunakan VS Code + Live Server. Dashboard demo ada di `admin.html`.
+## Anti bentrok jadwal
+- Kapasitas tiap layanan = kolom **Slot / unit** (mis. PS4 = 11 unit). Booking aktif (Pending/Confirmed/Reschedule) pada jam yang tumpang tindih tidak boleh melebihi kapasitas itu.
+- Dicek di database (trigger `ls_bookings_guard`) dengan kunci per layanan, jadi dua orang yang menekan kirim bersamaan tetap tidak bisa sama-sama masuk ke unit terakhir.
+- Berlaku juga saat admin melakukan *Reschedule* di dashboard (jika penuh, muncul pesan error dan jadwal tidak berubah). Booking yang dibatalkan/selesai tidak menghitung kapasitas.
+- Form booking mencoret jam yang penuh sesuai layanan, tanggal, dan durasi yang dipilih, serta jam yang sudah lewat hari ini.
+- Booking yang melewati tengah malam ikut dihitung ke hari berikutnya.
 
-## Deploy ke GitHub
-1. Extract ZIP.
-2. Buat repository baru di https://github.com/new.
-3. Upload isi folder ini ke root repository, bukan ZIP-nya.
-4. Commit ke branch `main`.
+## Pembatasan spam
+Di server (`create_booking`, tidak bisa dilewati lewat browser):
+- Jeda 30 detik per nomor WhatsApp; maks. 5 booking per 24 jam per nomor; maks. 3 booking aktif mendatang per nomor.
+- Per alamat IP: maks. 8 booking per jam dan 2 per 10 detik.
+- Kolom tersembunyi (honeypot): bot yang mengisinya dianggap sukses palsu dan tidak disimpan.
+- Jam mulai yang sudah lewat, tanggal lebih dari 180 hari, dan nomor/durasi tidak valid ditolak.
+Di browser: jeda 30 detik antar kirim dan form tidak bisa dikirim kurang dari 2,5 detik setelah dibuka.
+Angka batas bisa diubah di fungsi `create_booking` pada `supabase/schema.sql`.
 
-Atau lewat terminal:
-```bash
-git init
-git add .
-git commit -m "Refresh Land Station neon space UI"
-git branch -M main
-git remote add origin https://github.com/USERNAME/land-station.git
-git push -u origin main
-```
-Ganti `USERNAME` dengan username GitHub kamu.
-
-## Deploy ke Vercel
-1. Buka https://vercel.com/new dan import repository GitHub.
-2. Framework preset: **Other**.
-3. Karena ini HTML statis, tidak perlu build command; output root project (`.`).
-4. Klik Deploy. Push berikutnya ke branch yang terhubung akan memicu deployment baru.
-
-## Menyiapkan Supabase
-1. Buat project di https://supabase.com/dashboard.
-2. Buka SQL Editor dan jalankan isi `supabase/schema.sql`.
-3. Schema menyiapkan tabel `services`, `promos`, `bookings`, `site_settings`.
-
-**Penting:** website ini masih menggunakan `localStorage` untuk data demo. SQL hanya menyiapkan struktur database dan belum menghubungkan form booking/admin ke Supabase. Sebelum live, integrasikan `js/main.js` dan `js/admin.js` dengan Supabase, siapkan Supabase Auth untuk admin, lalu buat RLS policies yang aman. Jangan pernah memasukkan `service_role` key ke HTML/JavaScript publik. Jangan membuka akses publik ke seluruh data pelanggan.
+## Setup (sekali saja)
+1. **Supabase → SQL Editor**: jalankan seluruh isi `supabase/schema.sql` (aman diulang; wajib dijalankan ulang untuk fitur jadwal & anti-spam).
+2. **Supabase → Authentication → Users → Add user**: buat akun admin (email + password).
+3. Di SQL Editor, jalankan (ganti emailnya):
+   ```sql
+   insert into public.admin_users (user_id)
+   select id from auth.users where email = 'EMAIL_ADMIN_KAMU@contoh.com'
+   on conflict do nothing;
+   ```
+4. Deploy ulang seluruh isi folder ini (GitHub → Vercel), buka `/admin`, login, lalu upload.
 
 ## Struktur
-- `index.html` — website publik
-- `admin.html` — dashboard demo
-- `css/style.css` — tema visual
-- `js/main.js`, `js/admin.js` — interaksi demo
-- `assets/` — logo dan ilustrasi
-- `supabase/schema.sql` — starter schema
+- `index.html` — website publik · `admin.html` — dashboard (wajib login)
+- `css/style.css` — tema · `js/config.js` (koneksi Supabase), `js/common.js`, `js/main.js`, `js/admin.js`
+- `supabase/schema.sql` — tabel, RLS, bucket, RPC
 
-
-## Supabase frontend connection (revisi)
-- `index.html` and `admin.html` initialize the Supabase JS client using the supplied project URL and publishable key.
-- The public booking form now attempts to insert booking requests into `public.bookings`.
-- Run the complete `supabase/schema.sql` in Supabase SQL Editor before testing. It creates/updates tables, seeds the default service IDs used by the form, and adds limited RLS policies for active catalog reads, promo reads, and public booking inserts.
-- Public visitors do **not** receive permission to read booking records. This is intentional to protect customer names and phone numbers.
-
-## Current limitations — read before production
-- The existing admin dashboard still uses browser `localStorage` for viewing/updating bookings, services, and promos. It does not yet load or update these records from Supabase, so bookings sent from another device will not automatically appear in the admin dashboard.
-- Public booking inserts are connected, but price/slot/promo validation is still frontend-driven. Before accepting real payments or guaranteeing reservations, move price calculation and slot locking to a secure server/database RPC and add abuse protection.
-- Admin login and admin-only RLS policies are not implemented in this ZIP. Do not expose booking SELECT/update permissions publicly. Add Supabase Auth and a verified admin authorization strategy before connecting admin reads/writes.
-- The Supabase publishable key is designed for frontend use. Never use a `service_role` key or secret key in browser code.
-
-## Upload foto/video Home Hero ke Supabase
-
-Dashboard **Dashboard & tampilan → Midnight Mode · Home Hero** mendukung upload foto atau video. File media diunggah ke bucket `site-media` pada Supabase Storage; URL dan tipe media disimpan pada `public.site_settings` dengan key `homepage_media`. Halaman home membaca setting tersebut sehingga media yang sama tampil untuk pengunjung di perangkat lain.
-
-### Setup tambahan (wajib satu kali)
-1. Buka **Supabase Dashboard → SQL Editor**.
-2. Jalankan ulang file `supabase/schema.sql` versi paket ini (aman untuk tabel yang sudah ada; policy media dibuat ulang).
-3. Deploy ulang seluruh file ke hosting.
-4. Buka dashboard admin, pilih foto/video hero, lalu klik **SIMPAN TAMPILAN**.
-
-Batas upload dashboard: foto 12 MB, video 50 MB. Format video yang disarankan MP4 (H.264) atau WebM. Video tampil muted, autoplay, loop, dan playsinline.
-
-**Peringatan keamanan:** dashboard statis ini belum memakai login admin Supabase. Policy upload dan update hero pada SQL di atas mengizinkan akses anonim, sehingga siapa pun yang mengetahui URL aplikasi dapat mengganti media hero atau mengunggah file ke bucket. Sebelum dipakai publik, pasang Supabase Auth dan ubah policy agar hanya akun admin terotorisasi yang bisa upload/update. Jangan pernah memasukkan service-role key ke frontend.
+## Batas & catatan
+- Upload: foto 12 MB (foto besar otomatis diperkecil ke maks 2400 px), video 50 MB (MP4/WebM disarankan).
+- Gunakan hanya publishable key di frontend. Jangan pernah memasukkan `service_role`/secret key.
+- Pembatasan spam memakai batas per nomor/IP dan honeypot, belum CAPTCHA. Jika masih ada spam, tambahkan Cloudflare Turnstile sebelum menerima pembayaran.
+- Field URL gambar manual dan embed post Instagram dihapus dari dashboard (embed tidak punya tempat di halaman home); link profil Instagram tetap ada di footer.
