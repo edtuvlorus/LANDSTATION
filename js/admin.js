@@ -53,19 +53,16 @@ async function withBusy(label,fn){toast(label+'…');try{await fn()}catch(e){fai
 
 /* ---------- Auth ---------- */
 const show=(id,v)=>{$(id).hidden=!v};
-async function enter(){
-  const {data,error}=await sb.from('admin_users').select('user_id').maybeSingle();
-  if(error||!data){$('#loginMsg').textContent='Akun ini belum terdaftar sebagai admin (lihat README langkah 4).';await sb.auth.signOut();show('#dashView',false);show('#loginView',true);return}
-  show('#loginView',false);show('#dashView',true);await loadAll();
-}
+async function enter(){show('#loginView',false);show('#dashView',true);await loadAll()}
 $('#loginForm').addEventListener('submit',async e=>{
   e.preventDefault();const btn=$('#loginBtn');btn.disabled=true;$('#loginMsg').textContent='';
   const {error}=await sb.auth.signInWithPassword({email:$('#loginEmail').value.trim(),password:$('#loginPass').value});
-  btn.disabled=false;if(error){$('#loginMsg').textContent='Login gagal: '+error.message;return}
+  btn.disabled=false;if(error){$('#loginMsg').textContent=/invalid login/i.test(error.message)?'Email atau password salah.':'Login gagal: '+error.message;return}
   $('#loginPass').value='';await enter();
 });
 $('#logoutBtn').addEventListener('click',async()=>{await sb.auth.signOut();show('#dashView',false);show('#loginView',true)});
 (async()=>{const {data:{session}}=await sb.auth.getSession();if(session)await enter();else show('#loginView',true)})();
+sb.auth.onAuthStateChange(ev=>{if(ev==='SIGNED_OUT'){show('#dashView',false);show('#loginView',true)}});
 
 /* ---------- Tabs ---------- */
 $$('.admin-side [data-tab]').forEach(b=>b.onclick=()=>{

@@ -68,12 +68,6 @@ create table if not exists public.media_files (
   created_at timestamptz not null default now()
 );
 
--- Daftar akun admin (dibuat di Authentication → Users, lalu didaftarkan di sini)
-create table if not exists public.admin_users (
-  user_id uuid primary key references auth.users(id) on delete cascade,
-  created_at timestamptz not null default now()
-);
-
 -- ---------- Trigger updated_at ----------
 create or replace function public.set_updated_at() returns trigger
 language plpgsql as $$ begin new.updated_at = now(); return new; end $$;
@@ -93,12 +87,19 @@ insert into public.services (id,name,description,price,slot,image_url,active,sor
 on conflict (id) do nothing;
 
 -- ---------- Helper admin ----------
+-- Admin = user yang login lewat Supabase Authentication (dibuat di Authentication -> Users).
+-- PENTING: matikan "Allow new users to sign up" di Authentication -> Sign In / Providers
+-- agar orang lain tidak bisa mendaftar sendiri. Login anonim juga ditolak.
 create or replace function public.is_admin() returns boolean
 language sql stable security definer set search_path = public as $$
-  select exists (select 1 from public.admin_users where user_id = auth.uid())
+  select auth.uid() is not null
+     and coalesce((auth.jwt() ->> 'is_anonymous')::boolean, false) = false
 $$;
 revoke all on function public.is_admin() from public;
 grant execute on function public.is_admin() to anon, authenticated;
+
+-- Tabel admin_users dari versi sebelumnya tidak dipakai lagi
+drop table if exists public.admin_users cascade;
 
 -- ---------- RLS ----------
 alter table public.services      enable row level security;
@@ -106,7 +107,6 @@ alter table public.promos        enable row level security;
 alter table public.bookings      enable row level security;
 alter table public.site_settings enable row level security;
 alter table public.media_files   enable row level security;
-alter table public.admin_users   enable row level security;
 
 -- Hapus policy lama (termasuk policy anonim yang tidak aman)
 drop policy if exists "Public can read active services" on public.services;
@@ -125,7 +125,6 @@ drop policy if exists "ls bookings admin all" on public.bookings;
 drop policy if exists "ls settings public read" on public.site_settings;
 drop policy if exists "ls settings admin all" on public.site_settings;
 drop policy if exists "ls media admin all" on public.media_files;
-drop policy if exists "ls admin_users self read" on public.admin_users;
 drop policy if exists "ls storage public read" on storage.objects;
 drop policy if exists "ls storage admin insert" on storage.objects;
 drop policy if exists "ls storage admin update" on storage.objects;
@@ -151,8 +150,6 @@ create policy "ls settings admin all" on public.site_settings
   for all to authenticated using (public.is_admin()) with check (public.is_admin());
 create policy "ls media admin all" on public.media_files
   for all to authenticated using (public.is_admin()) with check (public.is_admin());
-create policy "ls admin_users self read" on public.admin_users
-  for select to authenticated using (user_id = auth.uid());
 
 -- ---------- Storage bucket untuk foto & video ----------
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
@@ -354,9 +351,3 @@ begin
 end $$;
 revoke all on function public.create_booking(text,text,text,date,text,integer,text,text,text) from public;
 grant execute on function public.create_booking(text,text,text,date,text,integer,text,text,text) to anon, authenticated;
-
--- ---------- DAFTARKAN ADMIN (jalankan setelah membuat user di Authentication → Users) ----------
--- Ganti email di bawah, lalu hapus tanda komentar (--) dan jalankan:
--- insert into public.admin_users (user_id)
--- select id from auth.users where email = 'EMAIL_ADMIN_KAMU@contoh.com'
--- on conflict do nothing;

@@ -5,7 +5,7 @@
   Mencakup hero (foto/video), galeri (foto/video), banner event, dan foto layanan. File otomatis tersimpan begitu dipilih (tidak perlu menekan simpan).
 - **Harga per jam bisa diatur di dashboard** (tab *Layanan & harga/jam*). Ubah angka di tabel → otomatis tersimpan ke tabel `services`. Booking menghitung total = harga/jam × durasi (pilihan durasi ditambahkan di form booking).
 - **Layanan, promo, dan booking** sekarang dibaca/ditulis ke Supabase (bukan lagi `localStorage`), jadi booking dari perangkat lain muncul di dashboard.
-- **Login admin (Supabase Auth)**. Sebelumnya policy mengizinkan siapa pun (anonim) mengganti media dan mengupload ke bucket. Sekarang hanya akun yang terdaftar di `admin_users` yang bisa menulis.
+- **Login admin lewat Supabase Authentication saja**. Sebelumnya policy mengizinkan siapa pun (anonim) mengganti media dan mengupload ke bucket. Sekarang hanya user yang login (dibuat di Authentication → Users) yang bisa menulis. Tidak ada tabel admin terpisah.
 - **Booking lewat RPC `create_booking`**: harga dihitung di server dari harga/jam di database, promo divalidasi & slot promo dikurangi di server.
 - **CSS ditulis ulang** (`css/style.css`): tidak ada lagi `body:before/:after`, lingkaran `.section:after`, frame `.hero-visual:before/:after`, scrim `.gallery-card:after`/`.event-banner:after`, atau efek `.btn:before/:after` yang saling menumpuk. Teks di atas foto memakai panel/badge sendiri; banner event dibuat panel + foto berdampingan.
 
@@ -27,13 +27,8 @@ Angka batas bisa diubah di fungsi `create_booking` pada `supabase/schema.sql`.
 
 ## Setup (sekali saja)
 1. **Supabase → SQL Editor**: jalankan seluruh isi `supabase/schema.sql` (aman diulang; wajib dijalankan ulang untuk fitur jadwal & anti-spam).
-2. **Supabase → Authentication → Users → Add user**: buat akun admin (email + password).
-3. Di SQL Editor, jalankan (ganti emailnya):
-   ```sql
-   insert into public.admin_users (user_id)
-   select id from auth.users where email = 'EMAIL_ADMIN_KAMU@contoh.com'
-   on conflict do nothing;
-   ```
+2. **Supabase → Authentication → Users → Add user**: buat akun admin (email + password, centang *Auto Confirm User*). Menambah/menghapus admin cukup dilakukan di sini.
+3. **Authentication → Sign In / Providers**: matikan **Allow new users to sign up** (dan Anonymous sign-ins). Wajib — karena semua user yang login dianggap admin, pendaftaran publik harus ditutup.
 4. Deploy ulang seluruh isi folder ini (GitHub → Vercel), buka `/admin`, login, lalu upload.
 
 ## Struktur
