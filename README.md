@@ -60,3 +60,11 @@ Angka batas bisa diubah di fungsi `create_booking` pada `supabase/schema.sql`.
 - **Responsif**: breakpoint untuk layar ≥2000px, laptop, tablet, HP besar/kecil, HP landscape, safe-area (notch), dan perangkat sentuh; modal booking jadi bottom-sheet di HP.
 - **Banner 21:9**: tampil di home tepat di bawah hero (foto rasio 21:9 + panel teks di bawahnya). Ukuran ideal 2100×900 px. Upload foto banner otomatis mengaktifkan banner.
 - **WAJIB**: jalankan ulang seluruh `supabase/schema.sql` di SQL Editor (membuat tabel `packages`, kolom `package_name`, dan fungsi `create_booking` baru), lalu deploy ulang.
+
+## Revisi 4 (kategori, jumlah layanan, foto per layanan, urutan kartu, export PDF)
+- **Kategori layanan**: tab *Layanan & kategori* → tambah kategori, ganti nama (langsung di tabel), hapus (layanan di dalamnya jadi "tanpa kategori"). Website menampilkan filter kategori di atas daftar layanan.
+- **Layanan**: tambah, ganti (edit), dan hapus layanan; pilih kategorinya; **Jumlah layanan (unit)** bisa diubah di form maupun langsung di tabel (jumlah ini jadi kapasitas jadwal). Paket kini menempel ke layanan.
+- **Foto per layanan**: setiap layanan punya foto sendiri (bukan di kategori). Mengganti foto/menghapus layanan ikut menghapus file lama dari Supabase.
+- **Urutkan kartu booking**: pilihan *Waktu main (terdekat/terjauh)* dan *Terbaru/Terlama dibuat*; pilihan diingat di browser.
+- **Export PDF**: Overview → *Export data (PDF)*: Harian, Mingguan (Senin–Minggu), atau Bulanan. Isi: ringkasan, rekap per layanan, dan tabel booking + total omset (booking Selesai). Membutuhkan koneksi internet (library jsPDF dari CDN).
+- **WAJIB**: jalankan ulang seluruh `supabase/schema.sql` (tabel `service_categories` + kolom `services.category_id`; layanan lama otomatis masuk kategori PS4/PS5/Billiard/Arcade), lalu deploy ulang.

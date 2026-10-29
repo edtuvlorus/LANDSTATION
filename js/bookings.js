@@ -300,6 +300,12 @@ $$('[data-bk-act]').forEach(btn=>btn.onclick=async()=>{
   await applyAction(id,act,opts);
 });
 
+/* ---------- Urutan kartu antrian ---------- */
+const SORTS={time:1,time_desc:1,newest:1,oldest:1};
+let queueSort=(()=>{try{const v=localStorage.getItem('ls_queue_sort');return SORTS[v]?v:'time'}catch{return 'time'}})();
+const playKey=b=>b.booking_date+' '+String(labelToMin(b.booking_time)).padStart(4,'0');
+const sorters={time:(a,b)=>playKey(a).localeCompare(playKey(b)),time_desc:(a,b)=>playKey(b).localeCompare(playKey(a)),
+  newest:(a,b)=>String(b.created_at).localeCompare(String(a.created_at)),oldest:(a,b)=>String(a.created_at).localeCompare(String(b.created_at))};
 /* ---------- Antrian (kartu) & riwayat ---------- */
 function bkCard(b,i){
   return `<article class="bk-card st-${b.status}" data-card="${b.id}" style="--d:${Math.min(i,10)*45}ms">
@@ -308,7 +314,7 @@ function bkCard(b,i){
     <div class="bk-btns"><button class="abtn ok" data-q="CONFIRMED" data-id="${b.id}" ${b.status==='CONFIRMED'?'disabled':''}>Confirm</button><button class="abtn blue" data-q="OPEN" data-id="${b.id}">Reschedule</button><button class="abtn done" data-q="COMPLETED" data-id="${b.id}">Selesai</button><button class="abtn bad" data-q="CANCELLED" data-id="${b.id}">Cancel</button></div></article>`;
 }
 function renderQueue(){
-  const live=state.bookings.filter(isActive).sort((a,b)=>(a.booking_date+a.booking_time).localeCompare(b.booking_date+b.booking_time));
+  const live=state.bookings.filter(isActive).sort(sorters[queueSort]);
   const box=$('#bookingList');
   $('#queueCount').textContent=live.length?`(${live.length})`:'';
   box.innerHTML=live.length?live.map(bkCard).join(''):'<p class="muted">Tidak ada booking aktif. Booking yang selesai/dibatalkan pindah ke riwayat.</p>';
@@ -325,6 +331,7 @@ function renderQueue(){
   $('#historyList').innerHTML=hist.length?`<table><thead><tr><th>Booking</th><th>Jadwal</th><th>Total</th><th>Status</th></tr></thead><tbody>${hist.slice(0,200).map(b=>`<tr><td><b>${esc(b.id.slice(0,8).toUpperCase())}</b><br>${esc(b.customer_name)}<br><small>${esc(b.phone)}</small></td><td>${esc(b.service_name)}<br>${esc(b.booking_date)} · ${esc(b.booking_time)}</td><td>${money(b.total_price)}</td><td><span class="st-pill st-${b.status}">${BADGE[b.status]}</span></td></tr>`).join('')}</tbody></table>`:'<p class="muted">Belum ada riwayat.</p>';
 }
 function renderBookings(){renderBoard();renderQueue()}
+{const sel=$('#queueSort');if(sel){sel.value=queueSort;sel.onchange=()=>{queueSort=SORTS[sel.value]?sel.value:'time';try{localStorage.setItem('ls_queue_sort',queueSort)}catch{}renderQueue()}}}
 
 /* ---------- Kontrol tanggal papan ---------- */
 const shiftDay=n=>{const [y,m,d]=boardDate.split('-').map(Number);const t=new Date(y,m-1,d+n);boardDate=iso(t);renderBoard()};

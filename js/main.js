@@ -1,10 +1,11 @@
 /* LAND STATION — website publik. Semua data (layanan, harga/jam, media, event, venue) dibaca dari Supabase. */
 const DEFAULT_SERVICES=[
-  {id:'ps4',name:'PS4 Station',desc:'Console gaming untuk sesi santai, co-op, dan kompetisi antar teman.',price:25000,slot:11,img:'assets/ps4.svg'},
-  {id:'ps5',name:'PS5 Station',desc:'Next-gen console experience untuk main bareng squad.',price:35000,slot:12,img:'assets/ps5.svg'},
-  {id:'billiard',name:'Billiard Table Rent',desc:'Meja pool untuk casual play maupun friendly match.',price:50000,slot:5,img:'assets/billiard.svg'},
-  {id:'arcade',name:'Arcade & Retro Gaming',desc:'Rhythm, fighting, dan retro games dalam satu zona.',price:10000,slot:30,img:'assets/arcade.svg'}];
-let services=DEFAULT_SERVICES,promos=[],packages=[];
+  {id:'ps4',name:'PS4 Station',desc:'Console gaming untuk sesi santai, co-op, dan kompetisi antar teman.',price:25000,slot:11,img:'assets/ps4.svg',cat:'ps4'},
+  {id:'ps5',name:'PS5 Station',desc:'Next-gen console experience untuk main bareng squad.',price:35000,slot:12,img:'assets/ps5.svg',cat:'ps5'},
+  {id:'billiard',name:'Billiard Table Rent',desc:'Meja pool untuk casual play maupun friendly match.',price:50000,slot:5,img:'assets/billiard.svg',cat:'billiard'},
+  {id:'arcade',name:'Arcade & Retro Gaming',desc:'Rhythm, fighting, dan retro games dalam satu zona.',price:10000,slot:30,img:'assets/arcade.svg',cat:'arcade'}];
+const DEFAULT_CATS=[{id:'ps4',name:'PS4'},{id:'ps5',name:'PS5'},{id:'billiard',name:'Billiard'},{id:'arcade',name:'Arcade'}];
+let services=DEFAULT_SERVICES,promos=[],packages=[],categories=DEFAULT_CATS,activeCat='all';
 let site={homepage_media:DEFAULT_HERO,gallery:{items:DEFAULT_GALLERY},event:DEFAULT_EVENT,venue:DEFAULT_VENUE};
 
 /* ----- Navigasi ----- */
@@ -15,10 +16,18 @@ document.addEventListener('click',e=>{if(!menu.contains(e.target)&&!hamb.contain
 $$('a[href^="#"]').forEach(a=>a.addEventListener('click',e=>{const t=$(a.getAttribute('href'));if(!t)return;e.preventDefault();closeMenu();t.scrollIntoView({behavior:'smooth',block:'start'});history.replaceState(null,'',a.getAttribute('href'))}));
 
 /* ----- Render ----- */
+const catName=s=>categories.find(c=>c.id===s.cat)?.name||'';
+function renderCatFilter(){
+  const box=$('#catFilter'),used=categories.filter(c=>services.some(s=>s.cat===c.id));
+  if(used.length<2){box.innerHTML='';activeCat='all';return}
+  if(activeCat!=='all'&&!used.some(c=>c.id===activeCat))activeCat='all';
+  box.innerHTML=[{id:'all',name:'Semua'},...used].map(c=>`<button type="button" class="chip${c.id===activeCat?' active':''}" data-cat="${esc(c.id)}">${esc(c.name)}</button>`).join('');
+  $$('[data-cat]',box).forEach(b=>b.onclick=()=>{activeCat=b.dataset.cat;renderServices()});
+}
 const pkgsOf=id=>packages.filter(p=>p.service_id===id);
 const pkgHTML=id=>{const l=pkgsOf(id);return l.length?`<ul class="pkg-list">${l.map(p=>`<li><span>${esc(p.name)} · ${p.hours} jam</span><b>${money(p.price)}</b></li>`).join('')}</ul>`:''};
 function renderServices(){
-  $('#servicesGrid').innerHTML=services.map(s=>`<article class="service-card"><img src="${esc(s.img||'assets/arcade.svg')}" alt="${esc(s.name)}" loading="lazy"><div class="body"><span class="eyebrow">${String(s.slot).padStart(2,'0')} SLOT / ZONE</span><h3>${esc(s.name)}</h3><p>${esc(s.desc)}</p><div class="price">${money(s.price)} <small>/ jam</small></div>${pkgHTML(s.id)}<button class="btn" data-open>BOOK THIS ZONE ↗</button></div></article>`).join('');
+  renderCatFilter();$('#servicesGrid').innerHTML=services.filter(s=>activeCat==='all'||s.cat===activeCat).map(s=>`<article class="service-card"><img src="${esc(s.img||'assets/arcade.svg')}" alt="${esc(s.name)}" loading="lazy"><div class="body"><span class="eyebrow">${esc(catName(s)||'LAYANAN')} · ${String(s.slot).padStart(2,'0')} UNIT</span><h3>${esc(s.name)}</h3><p>${esc(s.desc)}</p><div class="price">${money(s.price)} <small>/ jam</small></div>${pkgHTML(s.id)}<button class="btn" data-open>BOOK THIS ZONE ↗</button></div></article>`).join('');
   $$('#servicesGrid [data-open]').forEach(b=>b.onclick=openModal);
 }
 function renderHero(){
@@ -45,16 +54,18 @@ function renderVenue(){
 function renderAll(){renderServices();renderHero();renderGallery();renderEvent();renderVenue();if(PL.finished)setupReveal()}
 
 async function loadData(){
-  const [svc,set,pr,pk]=await Promise.allSettled([
-    sb.from('services').select('id,name,description,price,slot,image_url').eq('active',true).order('sort_order').order('name'),
+  const [svc,set,pr,pk,ct]=await Promise.allSettled([
+    sb.from('services').select('id,name,description,price,slot,image_url,category_id').eq('active',true).order('sort_order').order('name'),
     sb.from('site_settings').select('key,value'),
     sb.from('promos').select('code,discount_type,discount_value,slots'),
-    sb.from('packages').select('id,service_id,name,hours,price').eq('active',true).order('sort_order').order('hours')]);
+    sb.from('packages').select('id,service_id,name,hours,price').eq('active',true).order('sort_order').order('hours'),
+    sb.from('service_categories').select('id,name').order('sort_order')]);
   if(svc.status==='fulfilled'&&!svc.value.error&&svc.value.data?.length)
-    services=svc.value.data.map(s=>({id:s.id,name:s.name,desc:s.description,price:s.price,slot:s.slot,img:s.image_url}));
+    services=svc.value.data.map(s=>({id:s.id,name:s.name,desc:s.description,price:s.price,slot:s.slot,img:s.image_url,cat:s.category_id}));
   if(set.status==='fulfilled'&&!set.value.error)(set.value.data||[]).forEach(r=>{site[r.key]=r.value});
   if(pr.status==='fulfilled'&&!pr.value.error)promos=pr.value.data||[];
   if(pk.status==='fulfilled'&&!pk.value.error)packages=pk.value.data||[];
+  if(ct.status==='fulfilled'&&!ct.value.error&&ct.value.data?.length)categories=ct.value.data;
   renderAll();
 }
 /* ----- Preloader: progres nyata (font, data Supabase, media hero, halaman) ----- */
@@ -169,7 +180,7 @@ $('#promoInput').addEventListener('input',()=>{const code=$('#promoInput').value
 
 function renderServicePicker(){
   const options=$('#servicePickerOptions'),label=$('#servicePickerLabel'),select=$('#bookService');
-  options.innerHTML='<div class="service-picker-options-inner">'+services.map(s=>`<button type="button" class="service-option${select.value===s.id?' selected':''}" data-service-id="${esc(s.id)}"><img src="${esc(s.img||'assets/arcade.svg')}" alt=""><span class="service-option-copy"><b>${esc(s.name)}</b><small>${money(s.price)} / jam · ${s.slot} slot/unit</small></span><span>↗</span></button>`).join('')+'</div>';
+  options.innerHTML='<div class="service-picker-options-inner">'+services.map(s=>`<button type="button" class="service-option${select.value===s.id?' selected':''}" data-service-id="${esc(s.id)}"><img src="${esc(s.img||'assets/arcade.svg')}" alt=""><span class="service-option-copy"><b>${esc(s.name)}</b><small>${catName(s)?esc(catName(s))+' · ':''}${money(s.price)} / jam · ${s.slot} unit</small></span><span>↗</span></button>`).join('')+'</div>';
   const chosen=services.find(s=>s.id===select.value)||services[0];if(chosen){select.value=chosen.id;label.textContent=`${chosen.name} — ${money(chosen.price)}/jam`}
   $$('[data-service-id]',options).forEach(b=>b.onclick=()=>{select.value=b.dataset.serviceId;const s=services.find(x=>x.id===select.value);label.textContent=`${s.name} — ${money(s.price)}/jam`;
     $$('.service-option',options).forEach(x=>x.classList.toggle('selected',x===b));$('#servicePicker').classList.remove('open');$('#servicePickerTrigger').setAttribute('aria-expanded','false');renderHours();loadAvailability()});

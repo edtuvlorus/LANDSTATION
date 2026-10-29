@@ -518,3 +518,23 @@ optgroup{font-style:normal}
 }
 /* Perangkat sentuh: tanpa efek hover yang mengganjal */
 @media(hover:none){.service-card:hover,.mini-grid article:hover,.menu a:hover{transform:none;padding-left:15px}.admin-side button:hover{transform:none}}
+
+/* ---------- Revisi 4: kategori, filter, urutan kartu, export ---------- */
+.cat-filter{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 18px}.cat-filter:empty{display:none}
+.chip{padding:9px 16px;border-radius:999px;background:#ffffff0a;border:1px solid #ffffff25;color:#d8dce4;cursor:pointer;font:600 12px var(--display);letter-spacing:1px;transition:background .25s,border-color .25s,color .25s}
+.chip:hover,.chip.active{background:#8a75ff2e;border-color:var(--violet);color:var(--violet)}
+.inline-form{display:flex;flex-wrap:wrap;gap:10px}
+.inline-form input,.sort-box select,.export-row input,.export-row select,.price-table input[type=text]{padding:10px;background:#05070b;border:1px solid #ffffff25;border-radius:8px;color:#fff;color-scheme:dark}
+.inline-form input{flex:1 1 220px;min-width:0}
+.price-table input[type=text]{width:100%;max-width:240px}
+.queue-head{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;margin-top:26px}
+.queue-head h3{margin:0}
+.sort-box{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted)}
+.export-box{margin-top:22px;padding:18px;border:1px solid #ffffff1c;border-radius:14px;background:#06080f}
+.export-row{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end}
+.export-row label{display:grid;gap:5px;font-size:12px;color:var(--muted)}
+.export-row label[hidden]{display:none}
+@media(max-width:640px){
+  .cat-filter{flex-wrap:nowrap;overflow-x:auto;padding-bottom:4px}.chip{flex:0 0 auto}
+  .sort-box,.sort-box select,.export-row label,.export-row select,.export-row input,.export-row .btn{width:100%}
+}

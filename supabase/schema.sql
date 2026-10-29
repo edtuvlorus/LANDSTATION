@@ -263,6 +263,25 @@ end $$;
 revoke all on function public.get_availability(text,date) from public;
 grant execute on function public.get_availability(text,date) to anon, authenticated;
 
+-- ---------- Kategori layanan (PS4, PS5, Billiard, Arcade, atau buatan sendiri) ----------
+-- Kategori mengelompokkan LAYANAN (tabel services). Jumlah layanan = kolom services.slot (unit), foto ada di tiap layanan.
+create table if not exists public.service_categories (
+  id text primary key,
+  name text not null,
+  sort_order integer not null default 0,
+  created_at timestamptz not null default now()
+);
+alter table public.services add column if not exists category_id text references public.service_categories(id) on delete set null;
+insert into public.service_categories (id,name,sort_order) values
+ ('ps4','PS4',1),('ps5','PS5',2),('billiard','Billiard',3),('arcade','Arcade',4)
+on conflict (id) do nothing;
+update public.services set category_id = id where category_id is null and id in (select id from public.service_categories);
+alter table public.service_categories enable row level security;
+drop policy if exists "ls categories public read" on public.service_categories;
+drop policy if exists "ls categories admin all" on public.service_categories;
+create policy "ls categories public read" on public.service_categories for select to anon, authenticated using (true);
+create policy "ls categories admin all" on public.service_categories for all to authenticated using (public.is_admin()) with check (public.is_admin());
+
 -- ---------- Paket layanan (harga paket / sekian jam, masuk ke kategori layanan) ----------
 -- Kategori layanan = baris di tabel services (PS4, PS5, Billiard, Arcade, dst.) beserta kapasitas slot/unit-nya.
 -- Setiap paket menempel ke satu kategori; saat dibooking, paket memakai 1 slot/unit dari kategori itu.

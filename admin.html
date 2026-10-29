@@ -42,7 +42,7 @@
       <aside class="admin-side">
         <button class="active" data-tab="overview">Overview</button>
         <button data-tab="appearance">Hero, galeri &amp; event</button>
-        <button data-tab="services">Kategori &amp; harga/jam</button>
+        <button data-tab="services">Layanan &amp; kategori</button>
         <button data-tab="packages">Paket layanan</button>
         <button data-tab="bookings">Booking</button>
         <button data-tab="promos">Kode promo</button>
@@ -69,6 +69,16 @@
           <div class="ov-cols">
             <div class="ov-box"><h3>OMSET 7 HARI TERAKHIR</h3><div class="bars" id="revBars"></div></div>
             <div class="ov-box"><h3>LAYANAN TERLARIS</h3><div id="topServices" class="rank"></div></div>
+          </div>
+          <div class="export-box">
+            <h3>EXPORT DATA (PDF)</h3>
+            <div class="export-row">
+              <label>Periode<select id="expType"><option value="day">Harian</option><option value="week">Mingguan (Senin-Minggu)</option><option value="month">Bulanan</option></select></label>
+              <label id="expDateWrap">Tanggal<input type="date" id="expDate"></label>
+              <label id="expMonthWrap" hidden>Bulan<input type="month" id="expMonth"></label>
+              <button class="btn" type="button" id="expBtn">DOWNLOAD PDF ↓</button>
+            </div>
+            <p class="fineprint" id="expHint"></p>
           </div>
           <p class="muted" style="margin-top:22px">Omset dihitung dari booking berstatus <b>Selesai</b>. Kartu yang sudah selesai hilang dari papan jadwal, tetapi datanya tetap tersimpan di Supabase dan tetap masuk omset.</p>
         </section>
@@ -103,18 +113,24 @@
         </section>
 
         <section class="admin-panel" id="services">
-          <h2>KATEGORI LAYANAN · HARGA PER JAM</h2>
-          <p class="muted">Ubah harga langsung di tabel — tersimpan otomatis ke database saat kolom selesai diedit.</p>
+          <h2>KATEGORI LAYANAN</h2>
+          <p class="muted">Kelompokkan layanan ke kategori (PS4, PS5, Billiard, Arcade, atau kategori baru). Ubah nama langsung di tabel. Menghapus kategori tidak menghapus layanannya (layanan menjadi tanpa kategori).</p>
+          <form id="categoryForm" class="inline-form"><input id="catName" required maxlength="40" placeholder="Nama kategori baru, mis. VR Zone" aria-label="Nama kategori baru"><button class="btn">+ TAMBAH KATEGORI</button></form>
+          <div class="table-wrap price-table" id="catList" style="margin-top:12px"></div>
+          <hr style="border:0;border-top:1px solid #ffffff20;margin:24px 0">
+          <h2>LAYANAN · HARGA PER JAM &amp; JUMLAH</h2>
+          <p class="muted">Ubah harga dan jumlah (unit) langsung di tabel — tersimpan otomatis ke database saat kolom selesai diedit.</p>
           <div class="table-wrap price-table" id="priceTable"></div>
           <hr style="border:0;border-top:1px solid #ffffff20;margin:24px 0">
-          <h2>TAMBAH / EDIT KATEGORI</h2>
+          <h2>TAMBAH / EDIT LAYANAN</h2>
           <form id="serviceForm" class="admin-form">
             <label>Pilih layanan<select id="serviceId"><option value="new">+ Layanan baru</option></select></label>
+            <label>Kategori<select id="serviceCat"><option value="">- Tanpa kategori -</option></select></label>
             <label>Nama layanan<input id="serviceName" required maxlength="80" placeholder="PS5 Station"></label>
             <label>Harga per jam (Rp)<input id="servicePrice" type="number" min="0" step="500" required></label>
-            <label>Slot / unit kategori<input id="serviceSlot" type="number" min="0" required></label>
+            <label>Jumlah layanan (unit)<input id="serviceSlot" type="number" min="0" required></label>
             <label class="full">Deskripsi<textarea id="serviceDesc" rows="2"></textarea></label>
-            <label>Foto layanan — otomatis di-upload<input id="serviceFile" type="file" accept="image/*"></label>
+            <label>Foto layanan ini — otomatis di-upload<input id="serviceFile" type="file" accept="image/*"></label>
             <label>Status<select id="serviceActive"><option value="true">Aktif</option><option value="false">Nonaktif</option></select></label>
             <div class="full preview-box" id="servicePreview"></div>
             <div class="full"><button class="btn">SIMPAN LAYANAN</button> <button class="btn danger" type="button" id="deleteService">HAPUS LAYANAN</button></div>
@@ -123,9 +139,9 @@
 
                 <section class="admin-panel" id="packages">
           <h2>PAKET LAYANAN</h2>
-          <p class="muted">Buat paket harga per sekian jam (mis. 3 jam Rp60.000). Setiap paket masuk ke <b>kategori layanan</b> yang dipilih (PS4, PS5, Billiard, Arcade, dst.) dan memakai 1 slot/unit dari kategori tersebut saat dibooking.</p>
+          <p class="muted">Buat paket harga per sekian jam (mis. 3 jam Rp60.000). Setiap paket menempel ke satu <b>layanan</b> (yang berada di dalam kategori PS4, PS5, Billiard, Arcade, dst.) dan memakai 1 unit dari jumlah layanan itu saat dibooking.</p>
           <form id="packageForm" class="admin-form">
-            <label>Kategori layanan<select id="pkgService" required></select></label>
+            <label>Layanan<select id="pkgService" required></select></label>
             <label>Nama paket<input id="pkgName" required maxlength="60" placeholder="Paket Hemat"></label>
             <label>Durasi (jam)<input id="pkgHours" type="number" min="1" max="12" value="3" required></label>
             <label>Harga paket (Rp)<input id="pkgPrice" type="number" min="0" step="500" required></label>
@@ -147,7 +163,7 @@
             <span class="board-legend"><i class="lg free"></i>kosong <i class="lg busy"></i>terisi <i class="lg bad"></i>penuh</span>
           </div>
           <div class="board-scroll" id="boardScroll"><div class="board" id="board"></div></div>
-          <h3 style="margin-top:26px">ANTRIAN BOOKING <small class="muted" id="queueCount"></small></h3>
+          <div class="queue-head"><h3>ANTRIAN BOOKING <small class="muted" id="queueCount"></small></h3><label class="sort-box">Urutkan<select id="queueSort"><option value="time">Waktu main - terdekat</option><option value="time_desc">Waktu main - terjauh</option><option value="newest">Terbaru dibuat</option><option value="oldest">Terlama dibuat</option></select></label></div>
           <div class="bk-cards" id="bookingList"></div>
           <details class="history" id="historyBox"><summary>RIWAYAT (SELESAI &amp; CANCEL) <small id="historyCount"></small></summary><div class="table-wrap" id="historyList"></div></details>
         </section>
@@ -227,5 +243,8 @@
 <script src="js/common.js"></script>
 <script src="js/bookings.js"></script>
 <script src="js/admin.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.4/dist/jspdf.plugin.autotable.min.js"></script>
+<script src="js/export.js"></script>
 </body>
 </html>
