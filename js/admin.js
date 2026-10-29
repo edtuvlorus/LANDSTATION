@@ -178,7 +178,7 @@ function renderServiceSelect(){
 let serviceImg={url:'',path:''};
 function fillServiceForm(){
   const s=state.services.find(x=>x.id===$('#serviceId').value);
-  $('#serviceName').value=s?.name||'';$('#servicePrice').value=s?.price??'';$('#serviceSlot').value=s?.slot??'';$('#serviceDesc').value=s?.description||'';
+  $('#serviceName').value=s?.name||'';$('#servicePrice').value=s?.price??'';$('#serviceSlot').value=s?.slot??'';$('#serviceDefaultHours').value=String(s?.default_hours||1);$('#serviceDesc').value=s?.description||'';
   $('#serviceActive').value=String(s?s.active:true);$('#serviceCat').value=s?(s.category_id||''):(state.categories[0]?.id||'');serviceImg={url:s?.image_url||'',path:''};
   $('#servicePreview').innerHTML=serviceImg.url?previewHTML({url:serviceImg.url,type:'image'},'Foto layanan'):'';
 }
@@ -198,7 +198,7 @@ $('#serviceFile').addEventListener('change',async e=>{
 });
 $('#serviceForm').addEventListener('submit',e=>{e.preventDefault();withBusy('Menyimpan layanan',async()=>{
   const sel=$('#serviceId').value,isNew=sel==='new',name=$('#serviceName').value.trim();
-  const row={name,description:$('#serviceDesc').value.trim(),price:Math.max(0,Math.round(+$('#servicePrice').value||0)),slot:Math.max(0,Math.round(+$('#serviceSlot').value||0)),image_url:serviceImg.url||'assets/arcade.svg',category_id:$('#serviceCat').value||null,active:$('#serviceActive').value==='true'};
+  const row={name,description:$('#serviceDesc').value.trim(),price:Math.max(0,Math.round(+$('#servicePrice').value||0)),slot:Math.max(0,Math.round(+$('#serviceSlot').value||0)),default_hours:Math.min(12,Math.max(1,Math.round(+$('#serviceDefaultHours').value||1))),image_url:serviceImg.url||'assets/arcade.svg',category_id:$('#serviceCat').value||null,active:$('#serviceActive').value==='true'};
   if(isNew){row.id=slug(name)+'-'+Math.random().toString(36).slice(2,5);row.sort_order=state.services.length+1;const {error}=await sb.from('services').insert(row);if(error)throw error}
   else{const {error}=await sb.from('services').update(row).eq('id',sel);if(error)throw error}
   await loadAll();if(isNew)$('#serviceId').value=row.id,fillServiceForm();toast('Layanan tersimpan di Supabase ✓');
@@ -266,12 +266,13 @@ function renderCategories(){
   sc.innerHTML='<option value="">- Tanpa kategori -</option>'+state.categories.map(c=>`<option value="${esc(c.id)}">${esc(c.name)}</option>`).join('');
   sc.value=state.categories.some(c=>c.id===old)?old:'';
   const box=$('#catList');
-  box.innerHTML=state.categories.length?`<table><thead><tr><th>Nama kategori</th><th>Layanan</th><th>Total unit</th><th></th></tr></thead><tbody>${state.categories.map(c=>{const l=state.services.filter(s=>s.category_id===c.id);return `<tr><td><input type="text" value="${esc(c.name)}" maxlength="40" data-cat-name="${esc(c.id)}" aria-label="Nama kategori"></td><td>${l.length}</td><td>${l.reduce((a,s)=>a+(+s.slot||0),0)}</td><td><button type="button" data-cat-del="${esc(c.id)}">Hapus</button></td></tr>`}).join('')}</tbody></table>`:'<p class="muted">Belum ada kategori.</p>';
+  box.innerHTML=state.categories.length?`<table><thead><tr><th>Nama kategori</th><th>Jumlah unit kategori</th><th>Jumlah layanan</th><th>Unit layanan (total)</th><th></th></tr></thead><tbody>${state.categories.map(c=>{const l=state.services.filter(s=>s.category_id===c.id);return `<tr><td><input type="text" value="${esc(c.name)}" maxlength="40" data-cat-name="${esc(c.id)}" aria-label="Nama kategori"></td><td><input type="number" min="0" step="1" value="${Number(c.unit_count??1)}" data-cat-units="${esc(c.id)}" aria-label="Jumlah unit kategori"></td><td>${l.length}</td><td>${l.reduce((a,s)=>a+(+s.slot||0),0)}</td><td><button type="button" data-cat-del="${esc(c.id)}">Hapus</button></td></tr>`}).join('')}</tbody></table>`:'<p class="muted">Belum ada kategori.</p>';
   $$('[data-cat-name]',box).forEach(i=>i.onchange=()=>withBusy('Mengganti nama kategori',async()=>{const c=state.categories.find(x=>x.id===i.dataset.catName),v=i.value.trim();if(!v){i.value=c.name;return}const {error}=await sb.from('service_categories').update({name:v}).eq('id',c.id);if(error)throw error;c.name=v;renderCategories();renderPrices();renderPackages();toast('Nama kategori tersimpan ✓')}));
+  $$('[data-cat-units]',box).forEach(i=>i.onchange=()=>withBusy('Menyimpan jumlah unit kategori',async()=>{const c=state.categories.find(x=>x.id===i.dataset.catUnits),v=Math.max(0,Math.round(+i.value||0));const {error}=await sb.from('service_categories').update({unit_count:v}).eq('id',c.id);if(error)throw error;c.unit_count=v;i.value=v;toast('Jumlah unit kategori tersimpan ✓')}));
   $$('[data-cat-del]',box).forEach(b=>b.onclick=()=>{if(!confirm('Hapus kategori ini? Layanan di dalamnya tidak ikut terhapus.'))return;withBusy('Menghapus kategori',async()=>{const {error}=await sb.from('service_categories').delete().eq('id',b.dataset.catDel);if(error)throw error;await loadAll();toast('Kategori dihapus ✓')})});
 }
 $('#categoryForm').addEventListener('submit',e=>{e.preventDefault();withBusy('Menyimpan kategori',async()=>{
   const name=$('#catName').value.trim();if(!name)return;
-  const {error}=await sb.from('service_categories').insert({id:slug(name)+'-'+Math.random().toString(36).slice(2,5),name,sort_order:state.categories.length+1});
-  if(error)throw error;$('#catName').value='';await loadAll();toast('Kategori ditambahkan ✓');
+  const {error}=await sb.from('service_categories').insert({id:slug(name)+'-'+Math.random().toString(36).slice(2,5),name,unit_count:Math.max(0,Math.round(+$('#catUnits').value||0)),sort_order:state.categories.length+1});
+  if(error)throw error;$('#catName').value='';$('#catUnits').value='1';await loadAll();toast('Kategori ditambahkan ✓');
 })});

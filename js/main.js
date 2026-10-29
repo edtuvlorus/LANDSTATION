@@ -21,8 +21,8 @@ function renderCatFilter(){
   const box=$('#catFilter'),used=categories.filter(c=>services.some(s=>s.cat===c.id));
   if(used.length<2){box.innerHTML='';activeCat='all';return}
   if(activeCat!=='all'&&!used.some(c=>c.id===activeCat))activeCat='all';
-  box.innerHTML=[{id:'all',name:'Semua'},...used].map(c=>`<button type="button" class="chip${c.id===activeCat?' active':''}" data-cat="${esc(c.id)}">${esc(c.name)}</button>`).join('');
-  $$('[data-cat]',box).forEach(b=>b.onclick=()=>{activeCat=b.dataset.cat;renderServices()});
+  box.innerHTML=[{id:'all',name:'Semua'},...used].map((c,i)=>`<button type="button" class="chip${c.id===activeCat?' active':''}" style="--chip-i:${i}" data-cat="${esc(c.id)}">${esc(c.name)}<span class="chip-glint" aria-hidden="true"></span></button>`).join('');
+  $$('[data-cat]',box).forEach(b=>b.onclick=()=>{activeCat=b.dataset.cat;renderServices();const active=$(`[data-cat="${CSS.escape(activeCat)}"]`);active?.classList.add('chip-pop');setTimeout(()=>active?.classList.remove('chip-pop'),360)});
 }
 const pkgsOf=id=>packages.filter(p=>p.service_id===id);
 const pkgHTML=id=>{const l=pkgsOf(id);return l.length?`<ul class="pkg-list">${l.map(p=>`<li><span>${esc(p.name)} · ${p.hours} jam</span><b>${money(p.price)}</b></li>`).join('')}</ul>`:''};
@@ -55,13 +55,13 @@ function renderAll(){renderServices();renderHero();renderGallery();renderEvent()
 
 async function loadData(){
   const [svc,set,pr,pk,ct]=await Promise.allSettled([
-    sb.from('services').select('id,name,description,price,slot,image_url,category_id').eq('active',true).order('sort_order').order('name'),
+    sb.from('services').select('id,name,description,price,slot,image_url,category_id,default_hours').eq('active',true).order('sort_order').order('name'),
     sb.from('site_settings').select('key,value'),
     sb.from('promos').select('code,discount_type,discount_value,slots'),
     sb.from('packages').select('id,service_id,name,hours,price').eq('active',true).order('sort_order').order('hours'),
-    sb.from('service_categories').select('id,name').order('sort_order')]);
+    sb.from('service_categories').select('id,name,unit_count').order('sort_order')]);
   if(svc.status==='fulfilled'&&!svc.value.error&&svc.value.data?.length)
-    services=svc.value.data.map(s=>({id:s.id,name:s.name,desc:s.description,price:s.price,slot:s.slot,img:s.image_url,cat:s.category_id}));
+    services=svc.value.data.map(s=>({id:s.id,name:s.name,desc:s.description,price:s.price,slot:s.slot,img:s.image_url,cat:s.category_id,default_hours:s.default_hours||1}));
   if(set.status==='fulfilled'&&!set.value.error)(set.value.data||[]).forEach(r=>{site[r.key]=r.value});
   if(pr.status==='fulfilled'&&!pr.value.error)promos=pr.value.data||[];
   if(pk.status==='fulfilled'&&!pk.value.error)packages=pk.value.data||[];
@@ -112,14 +112,14 @@ loadData().finally(async()=>{plStep();await Promise.race([heroReady(),new Promis
 /* ----- Booking modal ----- */
 const modal=$('#bookingModal');
 let openedAt=0;
-function openModal(){openedAt=Date.now();modal.classList.add('show');modal.setAttribute('aria-hidden','false');document.body.style.overflow='hidden';renderBookingServices();renderServicePicker();renderDates();renderHours();renderTimes();loadAvailability()}
+function openModal(){openedAt=Date.now();modal.classList.add('show');modal.setAttribute('aria-hidden','false');document.body.style.overflow='hidden';renderBookingServices();renderServicePicker();renderDates();const sv=services.find(x=>x.id===$('#bookService').value);if(sv?.default_hours)$('#bookHours').dataset.defaultHours=String(sv.default_hours);renderHours();if(sv?.default_hours)$('#bookHours').value='h:'+sv.default_hours;renderTimes();loadAvailability()}
 function closeModal(){modal.classList.remove('show');modal.setAttribute('aria-hidden','true');document.body.style.overflow=''}
 $$('[data-open]').filter(b=>!b.closest('#servicesGrid')).forEach(b=>b.addEventListener('click',openModal));
 $$('[data-close]').forEach(b=>b.addEventListener('click',closeModal));
 modal.addEventListener('click',e=>{if(e.target===modal)closeModal()});
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal()});
 
-function renderBookingServices(){const el=$('#bookService'),old=el.value;el.innerHTML=services.map(s=>`<option value="${esc(s.id)}">${esc(s.name)} — ${money(s.price)}/jam</option>`).join('');if(services.some(s=>s.id===old))el.value=old;el.onchange=()=>{renderHours();loadAvailability()}}
+function renderBookingServices(){const el=$('#bookService'),old=el.value;el.innerHTML=services.map(s=>`<option value="${esc(s.id)}">${esc(s.name)} — ${money(s.price)}/jam</option>`).join('');if(services.some(s=>s.id===old))el.value=old;el.onchange=()=>{const sv=services.find(x=>x.id===el.value);renderHours();if(sv?.default_hours&&[...$('#bookHours').options].some(o=>o.value==='h:'+sv.default_hours))$('#bookHours').value='h:'+sv.default_hours;renderTimes();loadAvailability()}}
 function renderHours(){
   const el=$('#bookHours'),old=el.value,s=services.find(x=>x.id===$('#bookService').value),pk=s?pkgsOf(s.id):[];
   el.innerHTML=[1,2,3,4,5,6,8,10,12].map(h=>`<option value="h:${h}">${h} jam${s?' — '+money(s.price*h):''}</option>`).join('')+(pk.length?`<optgroup label="Paket">${pk.map(p=>`<option value="p:${esc(p.id)}">${esc(p.name)} · ${p.hours} jam — ${money(p.price)}</option>`).join('')}</optgroup>`:'');

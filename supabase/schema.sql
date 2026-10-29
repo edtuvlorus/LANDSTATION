@@ -17,6 +17,7 @@ create table if not exists public.services (
   updated_at timestamptz not null default now()
 );
 alter table public.services add column if not exists sort_order integer not null default 0;
+alter table public.services add column if not exists default_hours integer not null default 1 check (default_hours between 1 and 12);
 comment on column public.services.price is 'Harga per jam (Rupiah)';
 
 create table if not exists public.promos (
@@ -268,9 +269,11 @@ grant execute on function public.get_availability(text,date) to anon, authentica
 create table if not exists public.service_categories (
   id text primary key,
   name text not null,
+  unit_count integer not null default 1 check (unit_count >= 0),
   sort_order integer not null default 0,
   created_at timestamptz not null default now()
 );
+alter table public.service_categories add column if not exists unit_count integer not null default 1 check (unit_count >= 0);
 alter table public.services add column if not exists category_id text references public.service_categories(id) on delete set null;
 insert into public.service_categories (id,name,sort_order) values
  ('ps4','PS4',1),('ps5','PS5',2),('billiard','Billiard',3),('arcade','Arcade',4)

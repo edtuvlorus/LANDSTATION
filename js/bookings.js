@@ -255,6 +255,8 @@ let curBooking=null;
 function timeOptions(_,selected){$('#rsTime').innerHTML=SLOTS.map(m=>`<option value="${minToLabel(m)}">${minToLabel(m)}</option>`).join('');$('#rsTime').value=selected}
 function openBookingModal(id){
   const b=state.bookings.find(x=>x.id===id);if(!b)return;curBooking=b;
+  const extra=$('#extraSessionHours');if(extra)extra.value='1';
+  updateExtraSessionPreview();
   $('#bkRef').textContent='BOOKING · '+b.id.slice(0,8).toUpperCase();$('#bkName').textContent=b.customer_name;
   $('#bkInfo').innerHTML=`<div><small>STATUS</small><b class="st-pill st-${b.status}">${BADGE[b.status]||esc(b.status)}</b></div>
     <div><small>WHATSAPP</small><b>${esc(b.phone)}</b></div>
@@ -298,6 +300,39 @@ $$('[data-bk-act]').forEach(btn=>btn.onclick=async()=>{
   const opts={waWindow:w};if(act==='RESCHEDULE'){opts.date=$('#rsDate').value;opts.time=$('#rsTime').value}
   closeModalEl('#bkModal');
   await applyAction(id,act,opts);
+});
+
+/* ---------- Tambah sesi rental dari kartu booking ---------- */
+function updateExtraSessionPreview(){
+  const b=curBooking;if(!b)return;
+  const svc=state.services.find(s=>s.id===b.service_id),hours=Math.max(1,+$('#extraSessionHours')?.value||1);
+  const price=(+svc?.price||0)*hours;
+  const out=$('#extraSessionPrice');if(out)out.value=money(price);
+}
+$('#extraSessionHours')?.addEventListener('change',updateExtraSessionPreview);
+$('#addSessionBtn')?.addEventListener('click',async()=>{
+  const b=curBooking;if(!b||!isActive(b)){toast('Hanya booking aktif yang bisa ditambah sesi.',true);return}
+  const svc=state.services.find(s=>s.id===b.service_id);if(!svc){toast('Data layanan tidak ditemukan.',true);return}
+  const extraHours=Math.max(1,Math.min(6,Math.round(+$('#extraSessionHours').value||1)));
+  const extraMinutes=extraHours*60,newDuration=b.duration_minutes+extraMinutes;
+  const start=labelToMin(b.booking_time),date=b.booking_date,cap=Math.max(0,+svc.slot||0);
+  if(cap<=0){toast('Unit layanan belum disetel.',true);return}
+  if(start+newDuration>END_MIN){toast('Sesi tambahan melewati jam operasional. Pilih waktu mulai lebih awal.',true);return}
+  for(let t=start+b.duration_minutes;t<start+newDuration;t+=STEP){
+    const used=state.bookings.filter(x=>isActive(x)&&x.id!==b.id&&x.service_id===b.service_id&&x.booking_date===date&&labelToMin(x.booking_time)<=t&&labelToMin(x.booking_time)+x.duration_minutes>t).length;
+    if(used>=cap){toast(`Unit penuh pada ${minToLabel(t)}. Sesi tidak ditambahkan.`,true);return}
+  }
+  const addPrice=Math.max(0,+svc.price||0)*extraHours;
+  if(!confirm(`Tambah ${extraHours} jam untuk ${b.customer_name}?
+Durasi: ${hoursOf(b)} → ${newDuration/60} jam
+Tambahan biaya: ${money(addPrice)}
+Total baru: ${money((+b.total_price||0)+addPrice)}`))return;
+  const btn=$('#addSessionBtn');btn.disabled=true;
+  try{
+    const patch={duration_minutes:newDuration,total_price:(+b.total_price||0)+addPrice};
+    const {error}=await sb.from('bookings').update(patch).eq('id',b.id);if(error)throw error;
+    Object.assign(b,patch);renderBookings();renderOverview();openBookingModal(b.id);toast(`Sesi ditambah ${extraHours} jam ✓`);
+  }catch(err){fail(err,'Gagal menambah sesi rental')}finally{btn.disabled=false}
 });
 
 /* ---------- Urutan kartu antrian ---------- */
