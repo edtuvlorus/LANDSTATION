@@ -46,3 +46,16 @@ Ganti `USERNAME` dengan username GitHub kamu.
 - `js/main.js`, `js/admin.js` — interaksi demo
 - `assets/` — logo dan ilustrasi
 - `supabase/schema.sql` — starter schema
+
+
+## Supabase frontend connection (revisi)
+- `index.html` and `admin.html` initialize the Supabase JS client using the supplied project URL and publishable key.
+- The public booking form now attempts to insert booking requests into `public.bookings`.
+- Run the complete `supabase/schema.sql` in Supabase SQL Editor before testing. It creates/updates tables, seeds the default service IDs used by the form, and adds limited RLS policies for active catalog reads, promo reads, and public booking inserts.
+- Public visitors do **not** receive permission to read booking records. This is intentional to protect customer names and phone numbers.
+
+## Current limitations — read before production
+- The existing admin dashboard still uses browser `localStorage` for viewing/updating bookings, services, and promos. It does not yet load or update these records from Supabase, so bookings sent from another device will not automatically appear in the admin dashboard.
+- Public booking inserts are connected, but price/slot/promo validation is still frontend-driven. Before accepting real payments or guaranteeing reservations, move price calculation and slot locking to a secure server/database RPC and add abuse protection.
+- Admin login and admin-only RLS policies are not implemented in this ZIP. Do not expose booking SELECT/update permissions publicly. Add Supabase Auth and a verified admin authorization strategy before connecting admin reads/writes.
+- The Supabase publishable key is designed for frontend use. Never use a `service_role` key or secret key in browser code.

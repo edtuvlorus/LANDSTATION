@@ -9,3 +9,42 @@ alter table public.bookings enable row level security;
 alter table public.site_settings enable row level security;
 -- Add carefully scoped RLS policies and Supabase Auth before production.
 -- Do not expose the service_role key in browser JavaScript.
+
+
+-- Frontend integration policies: public can read active catalog/promo data and submit bookings.
+-- No public SELECT policy is created for bookings, so customer records remain private.
+alter table public.bookings add column if not exists notes text not null default '';
+
+insert into public.services (id,name,description,price,slot,image_url,active)
+values
+ ('ps4','PS4 Station','Console gaming untuk sesi santai, co-op, dan kompetisi antar teman.',25000,11,'assets/ps4.svg',true),
+ ('ps5','PS5 Station','Next-gen console experience untuk main bareng squad.',35000,12,'assets/ps5.svg',true),
+ ('billiard','Billiard Table Rent','Meja pool untuk casual play maupun friendly match.',50000,5,'assets/billiard.svg',true),
+ ('arcade','Arcade & Retro Gaming','Rhythm, fighting, dan retro games dalam satu zona.',10000,30,'assets/arcade.svg',true)
+on conflict (id) do nothing;
+
+drop policy if exists "Public can read active services" on public.services;
+create policy "Public can read active services"
+on public.services for select to anon, authenticated
+using (active = true);
+
+drop policy if exists "Public can read active promos" on public.promos;
+create policy "Public can read active promos"
+on public.promos for select to anon, authenticated
+using (active = true and slots > 0 and (starts_at is null or starts_at <= now()) and (ends_at is null or ends_at >= now()));
+
+drop policy if exists "Public can submit booking requests" on public.bookings;
+create policy "Public can submit booking requests"
+on public.bookings for insert to anon, authenticated
+with check (
+  length(trim(customer_name)) between 2 and 120
+  and length(regexp_replace(phone, '[^0-9+]', '', 'g')) between 8 and 20
+  and length(trim(service_name)) between 2 and 120
+  and booking_date >= current_date
+  and length(trim(booking_time)) between 4 and 10
+  and total_price >= 0
+  and status = 'PENDING'
+);
+
+-- Keep admin mutations locked until Supabase Auth + an explicit admin authorization
+-- policy has been configured. Do not add a public SELECT policy to bookings.
