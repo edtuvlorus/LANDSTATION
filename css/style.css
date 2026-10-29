@@ -538,17 +538,3 @@ optgroup{font-style:normal}
   .cat-filter{flex-wrap:nowrap;overflow-x:auto;padding-bottom:4px}.chip{flex:0 0 auto}
   .sort-box,.sort-box select,.export-row label,.export-row select,.export-row input,.export-row .btn{width:100%}
 }
-
-
-/* Revisi: kategori interaktif + micro-animation */
-.chip{isolation:isolate;animation:chipEnter .42s both;animation-delay:calc(var(--chip-i,0) * 55ms);transition:transform .22s cubic-bezier(.2,.8,.2,1),background .25s,border-color .25s,color .25s,box-shadow .25s}
-.chip::before{content:"";position:absolute;inset:0;z-index:-1;border-radius:inherit;background:linear-gradient(110deg,transparent 20%,#ffffff22 48%,transparent 72%);transform:translateX(-130%);transition:transform .45s ease}
-.chip:hover::before{transform:translateX(130%)}
-.chip:hover{transform:translateY(-3px) scale(1.025);box-shadow:0 8px 24px #8a75ff24}
-.chip:active,.chip.chip-pop{transform:scale(.94);box-shadow:0 0 0 4px #8a75ff20,0 0 24px #8a75ff44}
-.chip.active{box-shadow:0 0 0 1px #8a75ff25,0 0 18px #8a75ff24}
-@keyframes chipEnter{from{opacity:0;transform:translateY(9px) scale(.96)}to{opacity:1;transform:translateY(0) scale(1)}}
-@media(prefers-reduced-motion:reduce){.chip{animation:none;transition:none}.chip::before{display:none}}
-.session-editor{border:1px solid #a09aff38;border-radius:14px;padding:16px;margin:16px 0;background:linear-gradient(135deg,#8a75ff0d,#53a8ff08)}
-.session-editor h3{margin-top:0}
-.session-editor .rs-row{margin-bottom:12px}

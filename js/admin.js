@@ -1,6 +1,6 @@
 /* LAND STATION — dashboard admin. Semua upload & pengaturan disimpan ke Supabase (Storage + Database). */
 const BUCKET=window.LS.bucket;
-const state={services:[],packages:[],categories:[],promos:[],bookings:[],media:[],site:{}};
+const state={services:[],categories:[],promos:[],bookings:[],media:[],site:{}};
 
 /* ---------- Util ---------- */
 let toastTimer;
@@ -75,20 +75,19 @@ $$('.admin-side [data-tab]').forEach(b=>b.onclick=()=>{
 
 /* ---------- Load semua data ---------- */
 async function loadAll(){
-  const [sv,pr,bk,md,st,pk,ct]=await Promise.all([
+  const [sv,pr,bk,md,st,ct]=await Promise.all([
     sb.from('services').select('*').order('sort_order').order('name'),
     sb.from('promos').select('*').order('created_at',{ascending:false}),
     sb.from('bookings').select('*').order('created_at',{ascending:false}).limit(3000),
     sb.from('media_files').select('*').order('created_at',{ascending:false}),
     sb.from('site_settings').select('key,value'),
-    sb.from('packages').select('*').order('sort_order').order('hours'),
     sb.from('service_categories').select('*').order('sort_order').order('name')]);
-  for(const r of [sv,pr,bk,md,st,pk,ct])if(r.error){fail(r.error,'Memuat data');}
-  state.services=sv.data||[];state.promos=pr.data||[];state.bookings=bk.data||[];state.media=md.data||[];state.packages=pk.data||[];state.categories=ct.data||[];
+  for(const r of [sv,pr,bk,md,st,ct])if(r.error){fail(r.error,'Memuat data');}
+  state.services=sv.data||[];state.promos=pr.data||[];state.bookings=bk.data||[];state.media=md.data||[];state.categories=ct.data||[];
   state.site={};(st.data||[]).forEach(r=>state.site[r.key]=r.value);
   renderAll();
 }
-function renderAll(){renderOverview();renderHero();renderGallery();renderEventForm();renderCategories();renderPrices();renderServiceSelect();renderPackages();renderBookings();window.refreshExportHint?.();renderPromos();renderVenue();renderLibrary()}
+function renderAll(){renderOverview();renderHero();renderGallery();renderEventForm();renderCategories();renderPrices();renderServiceSelect();renderBookings();window.refreshExportHint?.();renderPromos();renderVenue();renderLibrary()}
 /* ---------- Hero ---------- */
 const previewHTML=(m,alt)=>m&&m.url?(m.type==='video'?`<video src="${esc(m.url)}" muted loop autoplay playsinline controls></video>`:`<img src="${esc(m.url)}" alt="${esc(alt)}">`):'<p class="fineprint">Belum ada media.</p>';
 function renderHero(){$('#heroPreview').innerHTML=previewHTML(state.site.homepage_media||DEFAULT_HERO,'Preview hero')}
@@ -157,13 +156,8 @@ $('#eventFile').addEventListener('change',async e=>{
 
 /* ---------- Layanan & harga per jam ---------- */
 function renderPrices(){
-  $('#priceTable').innerHTML=state.services.length?`<table><thead><tr><th>Layanan</th><th>Kategori</th><th>Harga / jam (Rp)</th><th>Jumlah</th><th>Aktif</th></tr></thead><tbody>${state.services.map(s=>`<tr><td><b>${esc(s.name)}</b></td><td>${esc(catNameOf(s.category_id)||'-')}</td><td><input type="number" min="0" step="500" value="${s.price}" data-price="${esc(s.id)}" aria-label="Harga ${esc(s.name)}"><span class="saved" data-saved="${esc(s.id)}"></span></td><td><input type="number" min="0" step="1" value="${s.slot}" data-slot="${esc(s.id)}" aria-label="Jumlah ${esc(s.name)}"></td><td><input type="checkbox" ${s.active?'checked':''} data-active="${esc(s.id)}" aria-label="Aktif ${esc(s.name)}"></td></tr>`).join('')}</tbody></table>`:'<p class="muted">Belum ada layanan.</p>';
-  $$('[data-price]').forEach(inp=>inp.onchange=async()=>{
-    const v=Math.max(0,Math.round(+inp.value||0)),id=inp.dataset.price,tag=$(`[data-saved="${CSS.escape(id)}"]`);
-    const {error}=await sb.from('services').update({price:v}).eq('id',id);
-    if(error){fail(error,'Harga gagal disimpan');return}
-    state.services.find(s=>s.id===id).price=v;inp.value=v;tag.textContent='Tersimpan ✓';setTimeout(()=>tag.textContent='',2200);
-  });
+  $('#priceTable').innerHTML=state.services.length?`<table><thead><tr><th>Layanan</th><th>Kategori</th><th>Weekday / jam</th><th>Weekend / jam</th><th>Jumlah</th><th>Aktif</th></tr></thead><tbody>${state.services.map(s=>`<tr><td><b>${esc(s.name)}</b></td><td>${esc(catNameOf(s.category_id)||'-')}</td><td><input type="number" min="0" step="500" value="${s.price_weekday??s.price??0}" data-weekday-price="${esc(s.id)}" aria-label="Harga weekday ${esc(s.name)}"></td><td><input type="number" min="0" step="500" value="${s.price_weekend??s.price??0}" data-weekend-price="${esc(s.id)}" aria-label="Harga weekend ${esc(s.name)}"><span class="saved" data-saved="${esc(s.id)}"></span></td><td><input type="number" min="0" step="1" value="${s.slot}" data-slot="${esc(s.id)}" aria-label="Jumlah ${esc(s.name)}"></td><td><input type="checkbox" ${s.active?'checked':''} data-active="${esc(s.id)}" aria-label="Aktif ${esc(s.name)}"></td></tr>`).join('')}</tbody></table>`:'<p class="muted">Belum ada layanan.</p>';
+  for(const [attr,field] of [['data-weekday-price','price_weekday'],['data-weekend-price','price_weekend']])$$(`[${attr}]`).forEach(inp=>inp.onchange=async()=>{const v=Math.max(0,Math.round(+inp.value||0)),id=attr==='data-weekday-price'?inp.dataset.weekdayPrice:inp.dataset.weekendPrice,{error}=await sb.from('services').update({[field]:v}).eq('id',id);if(error){fail(error,'Harga gagal disimpan');return}const item=state.services.find(s=>s.id===id);item[field]=v;inp.value=v;toast('Harga tersimpan ✓')});
   $$('[data-slot]').forEach(inp=>inp.onchange=async()=>{const v=Math.max(0,Math.round(+inp.value||0)),id=inp.dataset.slot,{error}=await sb.from('services').update({slot:v}).eq('id',id);if(error){fail(error,'Jumlah gagal disimpan');return}state.services.find(s=>s.id===id).slot=v;inp.value=v;renderCategories();toast('Jumlah layanan tersimpan ✓')});
   $$('[data-active]').forEach(cb=>cb.onchange=async()=>{
     const {error}=await sb.from('services').update({active:cb.checked}).eq('id',cb.dataset.active);
@@ -178,7 +172,7 @@ function renderServiceSelect(){
 let serviceImg={url:'',path:''};
 function fillServiceForm(){
   const s=state.services.find(x=>x.id===$('#serviceId').value);
-  $('#serviceName').value=s?.name||'';$('#servicePrice').value=s?.price??'';$('#serviceSlot').value=s?.slot??'';$('#serviceDefaultHours').value=String(s?.default_hours||1);$('#serviceDesc').value=s?.description||'';
+  $('#serviceName').value=s?.name||'';$('#serviceWeekdayPrice').value=s?.price_weekday??s?.price??'';$('#serviceWeekendPrice').value=s?.price_weekend??s?.price??'';$('#serviceSlot').value=s?.slot??'';$('#serviceDesc').value=s?.description||'';
   $('#serviceActive').value=String(s?s.active:true);$('#serviceCat').value=s?(s.category_id||''):(state.categories[0]?.id||'');serviceImg={url:s?.image_url||'',path:''};
   $('#servicePreview').innerHTML=serviceImg.url?previewHTML({url:serviceImg.url,type:'image'},'Foto layanan'):'';
 }
@@ -198,13 +192,13 @@ $('#serviceFile').addEventListener('change',async e=>{
 });
 $('#serviceForm').addEventListener('submit',e=>{e.preventDefault();withBusy('Menyimpan layanan',async()=>{
   const sel=$('#serviceId').value,isNew=sel==='new',name=$('#serviceName').value.trim();
-  const row={name,description:$('#serviceDesc').value.trim(),price:Math.max(0,Math.round(+$('#servicePrice').value||0)),slot:Math.max(0,Math.round(+$('#serviceSlot').value||0)),default_hours:Math.min(12,Math.max(1,Math.round(+$('#serviceDefaultHours').value||1))),image_url:serviceImg.url||'assets/arcade.svg',category_id:$('#serviceCat').value||null,active:$('#serviceActive').value==='true'};
+  const weekday=Math.max(0,Math.round(+$('#serviceWeekdayPrice').value||0)),weekend=Math.max(0,Math.round(+$('#serviceWeekendPrice').value||0));const row={name,description:$('#serviceDesc').value.trim(),price:weekday,price_weekday:weekday,price_weekend:weekend,slot:Math.max(0,Math.round(+$('#serviceSlot').value||0)),image_url:serviceImg.url||'assets/arcade.svg',category_id:$('#serviceCat').value||null,active:$('#serviceActive').value==='true'};
   if(isNew){row.id=slug(name)+'-'+Math.random().toString(36).slice(2,5);row.sort_order=state.services.length+1;const {error}=await sb.from('services').insert(row);if(error)throw error}
   else{const {error}=await sb.from('services').update(row).eq('id',sel);if(error)throw error}
   await loadAll();if(isNew)$('#serviceId').value=row.id,fillServiceForm();toast('Layanan tersimpan di Supabase ✓');
 })});
 $('#deleteService').addEventListener('click',()=>{
-  const id=$('#serviceId').value;if(id==='new')return;if(!confirm('Hapus layanan ini? Paket di layanan ini ikut terhapus, riwayat booking tetap tersimpan.'))return;
+  const id=$('#serviceId').value;if(id==='new')return;if(!confirm('Hapus layanan ini? Riwayat booking tetap tersimpan.'))return;
   withBusy('Menghapus layanan',async()=>{const {error}=await sb.from('services').delete().eq('id',id);if(error)throw error;const om=state.media.find(m=>m.url===state.services.find(s=>s.id===id)?.image_url);if(om)await deleteMedia(om.path);await loadAll();toast('Layanan dihapus ✓')});
 });
 
@@ -238,27 +232,6 @@ function renderLibrary(){
   $$('[data-m-del]',box).forEach(b=>b.onclick=()=>{if(!confirm('Hapus file ini dari Supabase?'))return;withBusy('Menghapus file',async()=>{await deleteMedia(b.dataset.mDel);await refreshMedia();toast('File dihapus ✓')})});
 }
 
-/* ---------- Paket layanan (masuk ke kategori layanan) ---------- */
-function pkgCapHint(){const s=state.services.find(x=>x.id===$('#pkgService').value);$('#pkgCap').textContent=s?`Paket ini memakai 1 unit dari layanan ${s.name} (jumlah ${s.slot} unit, diatur di tab Layanan & kategori).`:'Buat layanan dulu di tab Layanan & kategori.'}
-function renderPackages(){
-  const sel=$('#pkgService'),old=sel.value;
-  const opt=s=>`<option value="${esc(s.id)}">${esc(s.name)} · ${s.slot} unit</option>`,groups=state.categories.map(c=>({n:c.name,l:state.services.filter(s=>s.category_id===c.id)})).filter(g=>g.l.length),loose=state.services.filter(s=>!state.categories.some(c=>c.id===s.category_id));
-  sel.innerHTML=groups.map(g=>`<optgroup label="${esc(g.n)}">${g.l.map(opt).join('')}</optgroup>`).join('')+loose.map(opt).join('');
-  if(state.services.some(s=>s.id===old))sel.value=old;pkgCapHint();
-  const box=$('#pkgList'),svc=id=>state.services.find(s=>s.id===id);
-  box.innerHTML=state.packages.length?`<table><thead><tr><th>Layanan</th><th>Paket</th><th>Durasi</th><th>Harga (Rp)</th><th>≈ / jam</th><th>Aktif</th><th></th></tr></thead><tbody>${state.packages.map(p=>{const s=svc(p.service_id);return `<tr><td><b>${esc(s?.name||p.service_id)}</b><br><small>${esc(catNameOf(s?.category_id)||'Tanpa kategori')} · ${s?.slot??0} unit</small></td><td>${esc(p.name)}</td><td>${p.hours} jam</td><td><input type="number" min="0" step="500" value="${p.price}" data-pk-price="${p.id}" aria-label="Harga ${esc(p.name)}"></td><td>${money(Math.round(p.price/p.hours))}</td><td><input type="checkbox" ${p.active?'checked':''} data-pk-active="${p.id}" aria-label="Aktif ${esc(p.name)}"></td><td><button type="button" data-pk-del="${p.id}">Hapus</button></td></tr>`}).join('')}</tbody></table>`:'<p class="muted">Belum ada paket.</p>';
-  $$('[data-pk-price]',box).forEach(i=>i.onchange=()=>withBusy('Menyimpan harga paket',async()=>{const v=Math.max(0,Math.round(+i.value||0)),{error}=await sb.from('packages').update({price:v}).eq('id',i.dataset.pkPrice);if(error)throw error;state.packages.find(p=>p.id===i.dataset.pkPrice).price=v;renderPackages();toast('Harga paket tersimpan ✓')}));
-  $$('[data-pk-active]',box).forEach(c=>c.onchange=()=>withBusy('Menyimpan status paket',async()=>{const {error}=await sb.from('packages').update({active:c.checked}).eq('id',c.dataset.pkActive);if(error){c.checked=!c.checked;throw error}state.packages.find(p=>p.id===c.dataset.pkActive).active=c.checked;toast('Status paket tersimpan ✓')}));
-  $$('[data-pk-del]',box).forEach(b=>b.onclick=()=>{if(!confirm('Hapus paket ini?'))return;withBusy('Menghapus paket',async()=>{const {error}=await sb.from('packages').delete().eq('id',b.dataset.pkDel);if(error)throw error;await loadAll();toast('Paket dihapus ✓')})});
-}
-$('#pkgService').addEventListener('change',pkgCapHint);
-$('#packageForm').addEventListener('submit',e=>{e.preventDefault();withBusy('Menyimpan paket',async()=>{
-  const sid=$('#pkgService').value;if(!sid)throw new Error('Pilih layanan dulu.');
-  const row={service_id:sid,name:$('#pkgName').value.trim(),hours:Math.min(12,Math.max(1,Math.round(+$('#pkgHours').value||1))),price:Math.max(0,Math.round(+$('#pkgPrice').value||0)),active:$('#pkgActive').value==='true',sort_order:state.packages.filter(p=>p.service_id===sid).length+1};
-  const {error}=await sb.from('packages').insert(row);if(error)throw error;
-  $('#pkgName').value='';$('#pkgPrice').value='';await loadAll();toast('Paket tersimpan ✓');
-})});
-
 /* ---------- Kategori layanan ---------- */
 const catNameOf=id=>state.categories.find(c=>c.id===id)?.name||'';
 function renderCategories(){
@@ -266,13 +239,12 @@ function renderCategories(){
   sc.innerHTML='<option value="">- Tanpa kategori -</option>'+state.categories.map(c=>`<option value="${esc(c.id)}">${esc(c.name)}</option>`).join('');
   sc.value=state.categories.some(c=>c.id===old)?old:'';
   const box=$('#catList');
-  box.innerHTML=state.categories.length?`<table><thead><tr><th>Nama kategori</th><th>Jumlah unit kategori</th><th>Jumlah layanan</th><th>Unit layanan (total)</th><th></th></tr></thead><tbody>${state.categories.map(c=>{const l=state.services.filter(s=>s.category_id===c.id);return `<tr><td><input type="text" value="${esc(c.name)}" maxlength="40" data-cat-name="${esc(c.id)}" aria-label="Nama kategori"></td><td><input type="number" min="0" step="1" value="${Number(c.unit_count??1)}" data-cat-units="${esc(c.id)}" aria-label="Jumlah unit kategori"></td><td>${l.length}</td><td>${l.reduce((a,s)=>a+(+s.slot||0),0)}</td><td><button type="button" data-cat-del="${esc(c.id)}">Hapus</button></td></tr>`}).join('')}</tbody></table>`:'<p class="muted">Belum ada kategori.</p>';
-  $$('[data-cat-name]',box).forEach(i=>i.onchange=()=>withBusy('Mengganti nama kategori',async()=>{const c=state.categories.find(x=>x.id===i.dataset.catName),v=i.value.trim();if(!v){i.value=c.name;return}const {error}=await sb.from('service_categories').update({name:v}).eq('id',c.id);if(error)throw error;c.name=v;renderCategories();renderPrices();renderPackages();toast('Nama kategori tersimpan ✓')}));
-  $$('[data-cat-units]',box).forEach(i=>i.onchange=()=>withBusy('Menyimpan jumlah unit kategori',async()=>{const c=state.categories.find(x=>x.id===i.dataset.catUnits),v=Math.max(0,Math.round(+i.value||0));const {error}=await sb.from('service_categories').update({unit_count:v}).eq('id',c.id);if(error)throw error;c.unit_count=v;i.value=v;toast('Jumlah unit kategori tersimpan ✓')}));
+  box.innerHTML=state.categories.length?`<table><thead><tr><th>Nama kategori</th><th>Layanan</th><th>Total unit</th><th></th></tr></thead><tbody>${state.categories.map(c=>{const l=state.services.filter(s=>s.category_id===c.id);return `<tr><td><input type="text" value="${esc(c.name)}" maxlength="40" data-cat-name="${esc(c.id)}" aria-label="Nama kategori"></td><td>${l.length}</td><td>${l.reduce((a,s)=>a+(+s.slot||0),0)}</td><td><button type="button" data-cat-del="${esc(c.id)}">Hapus</button></td></tr>`}).join('')}</tbody></table>`:'<p class="muted">Belum ada kategori.</p>';
+  $$('[data-cat-name]',box).forEach(i=>i.onchange=()=>withBusy('Mengganti nama kategori',async()=>{const c=state.categories.find(x=>x.id===i.dataset.catName),v=i.value.trim();if(!v){i.value=c.name;return}const {error}=await sb.from('service_categories').update({name:v}).eq('id',c.id);if(error)throw error;c.name=v;renderCategories();renderPrices();toast('Nama kategori tersimpan ✓')}));
   $$('[data-cat-del]',box).forEach(b=>b.onclick=()=>{if(!confirm('Hapus kategori ini? Layanan di dalamnya tidak ikut terhapus.'))return;withBusy('Menghapus kategori',async()=>{const {error}=await sb.from('service_categories').delete().eq('id',b.dataset.catDel);if(error)throw error;await loadAll();toast('Kategori dihapus ✓')})});
 }
 $('#categoryForm').addEventListener('submit',e=>{e.preventDefault();withBusy('Menyimpan kategori',async()=>{
   const name=$('#catName').value.trim();if(!name)return;
-  const {error}=await sb.from('service_categories').insert({id:slug(name)+'-'+Math.random().toString(36).slice(2,5),name,unit_count:Math.max(0,Math.round(+$('#catUnits').value||0)),sort_order:state.categories.length+1});
-  if(error)throw error;$('#catName').value='';$('#catUnits').value='1';await loadAll();toast('Kategori ditambahkan ✓');
+  const {error}=await sb.from('service_categories').insert({id:slug(name)+'-'+Math.random().toString(36).slice(2,5),name,sort_order:state.categories.length+1});
+  if(error)throw error;$('#catName').value='';await loadAll();toast('Kategori ditambahkan ✓');
 })});

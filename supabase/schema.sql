@@ -17,7 +17,10 @@ create table if not exists public.services (
   updated_at timestamptz not null default now()
 );
 alter table public.services add column if not exists sort_order integer not null default 0;
-alter table public.services add column if not exists default_hours integer not null default 1 check (default_hours between 1 and 12);
+alter table public.services add column if not exists price_weekday integer not null default 0 check (price_weekday >= 0);
+alter table public.services add column if not exists price_weekend integer not null default 0 check (price_weekend >= 0);
+update public.services set price_weekday=price where price_weekday=0 and price>0;
+update public.services set price_weekend=price where price_weekend=0 and price>0;
 comment on column public.services.price is 'Harga per jam (Rupiah)';
 
 create table if not exists public.promos (
@@ -86,6 +89,7 @@ insert into public.services (id,name,description,price,slot,image_url,active,sor
  ('billiard','Billiard Table Rent','Meja pool untuk casual play maupun friendly match.',50000,5,'assets/billiard.svg',true,3),
  ('arcade','Arcade & Retro Gaming','Rhythm, fighting, dan retro games dalam satu zona.',10000,30,'assets/arcade.svg',true,4)
 on conflict (id) do nothing;
+update public.services set price_weekday=price, price_weekend=price where price_weekday=0 and price_weekend=0 and price>0;
 
 -- ---------- Helper admin ----------
 -- Admin = user yang login lewat Supabase Authentication (dibuat di Authentication -> Users).
@@ -269,11 +273,9 @@ grant execute on function public.get_availability(text,date) to anon, authentica
 create table if not exists public.service_categories (
   id text primary key,
   name text not null,
-  unit_count integer not null default 1 check (unit_count >= 0),
   sort_order integer not null default 0,
   created_at timestamptz not null default now()
 );
-alter table public.service_categories add column if not exists unit_count integer not null default 1 check (unit_count >= 0);
 alter table public.services add column if not exists category_id text references public.service_categories(id) on delete set null;
 insert into public.service_categories (id,name,sort_order) values
  ('ps4','PS4',1),('ps5','PS5',2),('billiard','Billiard',3),('arcade','Arcade',4)
@@ -371,7 +373,7 @@ begin
     if not found then raise exception 'Paket tidak tersedia untuk layanan ini'; end if;
     v_hours := pk.hours; v_base := pk.price;
   else
-    v_hours := p_hours; v_base := s.price * p_hours;
+    v_hours := p_hours; v_base := (case when extract(isodow from p_date) in (6,7) then coalesce(nullif(s.price_weekend,0),s.price) else coalesce(nullif(s.price_weekday,0),s.price) end) * p_hours;
   end if;
   v_total := v_base;
   if v_promo is not null then
